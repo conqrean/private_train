@@ -2,6 +2,7 @@
 """Korail train service implementation."""
 import sys
 import os
+from datetime import datetime, timedelta
 
 # Add parent directory to path for korail2 module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -64,19 +65,50 @@ class KorailService(BaseTrainService):
         time: str,
         include_no_seats: bool = False
     ) -> list[TrainInfo]:
-        """Search for Korail trains."""
+        """
+        Search for Korail trains with pagination-like logic.
+        Fetches approx 20 trains by default (2 pages).
+        """
         if not self._client:
             raise NeedToLoginError()
 
-        trains = self._client.search_train(
-            dep=dep,
-            arr=arr,
-            date=date,
-            time=time,
-            include_no_seats=include_no_seats
-        )
+        all_trains = []
+        current_time = time
+        
+        # Fetch up to 2 pages (approx 20 trains)
+        # Korail returns ~10 trains per call
+        for _ in range(2):
+            try:
+                trains = self._client.search_train(
+                    dep=dep,
+                    arr=arr,
+                    date=date,
+                    time=current_time,
+                    include_no_seats=include_no_seats
+                )
+                
+                if not trains:
+                    break
+                    
+                all_trains.extend(trains)
+                
+                # Update time for next page
+                # Parse last train time and add 1 minute
+                last_train = trains[-1]
+                last_dt = datetime.strptime(f"{last_train.dep_date}{last_train.dep_time}", "%Y%m%d%H%M%S")
+                next_dt = last_dt + timedelta(minutes=1)
+                current_time = next_dt.strftime("%H%M%S")
+                
+                # If next page query time goes to next day, stop
+                if next_dt.strftime("%Y%m%d") != date:
+                    break
+                    
+            except NoResultsError:
+                break
+            except Exception:
+                break
 
-        return [self._to_train_info(t) for t in trains]
+        return [self._to_train_info(t) for t in all_trains]
 
     def reserve(
         self,

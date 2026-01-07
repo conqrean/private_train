@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Search routes with multi-provider session support."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
-from flask import Blueprint, request, session, redirect, url_for, render_template
+from flask import Blueprint, request, session, redirect, url_for, render_template, jsonify
 
 from app.services import ServiceManager
 from app.utils.session_helper import (
@@ -31,6 +31,82 @@ def login_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+@bp.route('/api/search_more', methods=['POST'])
+@login_required
+def search_more():
+    """Fetch more trains starting from the last train's time."""
+    provider = get_current_provider()
+    service = ServiceManager.get_service(provider)
+    
+    # Get form data from request (or session)
+    dep = request.form.get('dep')
+    arr = request.form.get('arr')
+    date = request.form.get('date', '').replace('-', '')
+    last_time = request.form.get('last_time', '').replace(':', '')
+    
+    if not all([dep, arr, date, last_time]):
+        return jsonify({'error': 'Missing parameters'}), 400
+
+    try:
+        # Increment time by 1 minute to avoid getting the same last train
+        last_dt = datetime.strptime(f"{date}{last_time}", "%Y%m%d%H%M%S")
+        next_dt = last_dt + timedelta(minutes=1)
+        next_time = next_dt.strftime("%H%M%S")
+        
+        # Check if next_time crossed to next day
+        if next_dt.strftime("%Y%m%d") != date:
+            return jsonify({'trains': [], 'has_more': False})
+
+        train_results = service.search(
+            dep=dep,
+            arr=arr,
+            date=date,
+            time=next_time,
+            include_no_seats=True
+        )
+
+        # Format for JSON
+        trains_data = [
+            {
+                'index': 0, # Will be set on client-side
+                'train_name': t.train_name,
+                'train_number': t.train_number,
+                'dep_date': t.dep_date,
+                'dep_time': t.dep_time,
+                'dep_time_formatted': t.dep_time_formatted,
+                'arr_date': t.arr_date,
+                'arr_time': t.arr_time,
+                'arr_time_formatted': t.arr_time_formatted,
+                'duration_formatted': t.duration_formatted,
+                'dep_station': t.dep_station,
+                'arr_station': t.arr_station,
+                'general_seat_available': t.general_seat_available,
+                'special_seat_available': t.special_seat_available,
+            }
+            for t in train_results
+        ]
+
+        # Update session with new trains (optional, but good for macro)
+        search_state = get_search_state(provider)
+        existing_trains = search_state.get('trains', [])
+        
+        # Assign correct indices
+        start_idx = len(existing_trains)
+        for i, t in enumerate(trains_data):
+            t['index'] = start_idx + i
+            
+        search_state['trains'] = existing_trains + trains_data
+        session.modified = True
+
+        return jsonify({
+            'trains': trains_data,
+            'has_more': len(trains_data) > 0
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @bp.route('/', methods=['GET', 'POST'])

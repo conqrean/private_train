@@ -140,7 +140,7 @@
         </div>
 
         <!-- Train Table (Desktop) -->
-        <div class="hidden lg:block overflow-x-auto max-h-[480px] overflow-y-auto">
+        <div class="hidden lg:block overflow-x-auto max-h-[600px] overflow-y-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0 z-10">
                     <tr>
@@ -150,11 +150,12 @@
                         <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700">일반실</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody id="trainTableBody" class="bg-white divide-y divide-gray-200">
                     {% for train in trains %}
                     <tr class="train-row cursor-pointer transition-all duration-150 hover:bg-gray-50"
-                        data-index="{{ loop.index0 }}"
-                        data-testid="train-row-{{ loop.index0 }}"
+                        data-index="{{ train.index }}"
+                        data-time="{{ train.dep_time }}"
+                        data-testid="train-row-{{ train.index }}"
                         onclick="toggleTrainSelection(this)">
                         <!-- Train Info with Type Badge -->
                         <td class="px-6 py-5">
@@ -190,11 +191,11 @@
                         <!-- Special Seat Status -->
                         <td class="px-6 py-5 text-center">
                             {% if train.special_seat_available %}
-                            <span data-testid="seat-badge-special-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">
+                            <span data-testid="seat-badge-special-{{ train.index }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">
                                 예약가능
                             </span>
                             {% else %}
-                            <span data-testid="seat-badge-special-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">
+                            <span data-testid="seat-badge-special-{{ train.index }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">
                                 매진
                             </span>
                             {% endif %}
@@ -202,11 +203,11 @@
                         <!-- General Seat Status -->
                         <td class="px-6 py-5 text-center">
                             {% if train.general_seat_available %}
-                            <span data-testid="seat-badge-general-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">
+                            <span data-testid="seat-badge-general-{{ train.index }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">
                                 예약가능
                             </span>
                             {% else %}
-                            <span data-testid="seat-badge-general-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">
+                            <span data-testid="seat-badge-general-{{ train.index }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">
                                 매진
                             </span>
                             {% endif %}
@@ -218,11 +219,12 @@
         </div>
 
         <!-- Train Cards (Mobile) -->
-        <div class="lg:hidden space-y-3 p-4">
+        <div id="trainCardContainer" class="lg:hidden space-y-3 p-4">
             {% for train in trains %}
             <div class="train-row bg-white border rounded-xl p-4 cursor-pointer transition-all duration-150 hover:shadow-md"
-                 data-index="{{ loop.index0 }}"
-                 data-testid="train-row-{{ loop.index0 }}"
+                 data-index="{{ train.index }}"
+                 data-time="{{ train.dep_time }}"
+                 data-testid="train-row-{{ train.index }}"
                  onclick="toggleTrainSelection(this)">
                 <!-- Top: Train Info + Time -->
                 <div class="flex items-center justify-between mb-3">
@@ -280,6 +282,15 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+
+        <!-- Load More Button -->
+        <div class="p-4 flex justify-center border-t">
+            <button type="button" id="loadMoreBtn" 
+                    class="px-10 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition-all flex items-center gap-2">
+                <span>열차 더 보기</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
         </div>
 
         <!-- Action Buttons -->
@@ -415,6 +426,220 @@ document.addEventListener('DOMContentLoaded', function() {
             depStation.value = arrStation.value;
             arrStation.value = temp;
         });
+    }
+
+    // Load More Functionality
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    let isLoading = false; // Prevent multiple fetch calls
+
+    if (loadMoreBtn) {
+        // Function to load data
+        const loadMoreTrains = async function() {
+            if (isLoading || loadMoreBtn.disabled) return;
+
+            const lastRow = document.querySelector('.train-row:last-child');
+            if (!lastRow) return;
+
+            isLoading = true;
+            const lastTime = lastRow.dataset.time;
+            const dep = document.querySelector('[name="dep"]').value;
+            const arr = document.querySelector('[name="arr"]').value;
+            const date = document.querySelector('[name="date"]').value;
+
+            // Show loading state
+            const originalBtnContent = loadMoreBtn.innerHTML;
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.innerHTML = '<span class="animate-spin mr-2">⏳</span> 로딩 중...';
+
+            try {
+                const formData = new FormData();
+                formData.append('dep', dep);
+                formData.append('arr', arr);
+                formData.append('date', date);
+                formData.append('last_time', lastTime);
+
+                const response = await fetch('/api/search_more', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.trains && data.trains.length > 0) {
+                    appendTrains(data.trains);
+                    // Re-observe the new sentinel if needed (not needed here as btn is sentinel)
+                } else {
+                    loadMoreBtn.textContent = '마지막 열차입니다';
+                    loadMoreBtn.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+                    loadMoreBtn.disabled = true;
+                    // Stop observing
+                    if (observer) observer.disconnect();
+                }
+            } catch (error) {
+                console.error('Error loading more trains:', error);
+                // On error, reset button to manual retry
+                loadMoreBtn.innerHTML = '<span class="text-red-500">재시도 (오류 발생)</span>';
+            } finally {
+                isLoading = false;
+                if (!loadMoreBtn.classList.contains('cursor-not-allowed')) {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.innerHTML = originalBtnContent;
+                }
+            }
+        };
+
+        // Infinite Scroll (Intersection Observer)
+        const observerOptions = {
+            root: null, // viewport
+            rootMargin: '200px', // Trigger 200px before reaching the end
+            threshold: 0.1
+        };
+
+        let observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !isLoading && !loadMoreBtn.disabled) {
+                    loadMoreTrains();
+                }
+            });
+        }, observerOptions);
+
+        // Function to observe the last element
+        function observeLastItem() {
+            // Disconnect previous observation
+            observer.disconnect();
+
+            // Find last item (Desktop table row OR Mobile card)
+            // We check desktop row first as it is inside the scrollable container
+            const lastTableRow = document.querySelector('#trainTableBody .train-row:last-child');
+            const lastCard = document.querySelector('#trainCardContainer .train-row:last-child');
+            
+            // Observe whichever is visible or both
+            if (lastTableRow) observer.observe(lastTableRow);
+            if (lastCard && window.getComputedStyle(lastCard.parentElement).display !== 'none') {
+                observer.observe(lastCard);
+            }
+        }
+
+        // Initial observation
+        observeLastItem();
+
+        // Also add manual click
+        loadMoreBtn.addEventListener('click', loadMoreTrains);
+
+        // Overwrite appendTrains to re-observe after appending
+        const originalAppendTrains = window.appendTrains; // capture if defined elsewhere? No, defined below.
+        
+        // Let's redefine appendTrains to include observation update
+        // We need to move the appendTrains function definition UP or wrap logic.
+        // Since I'm editing inside the block, I will just call observeLastItem() at the end of loadMoreTrains
+    }
+
+    function appendTrains(trains) {
+        const tableBody = document.getElementById('trainTableBody');
+        const cardContainer = document.getElementById('trainCardContainer');
+
+        trains.forEach(train => {
+            // ... (row creation logic same as before) ...
+            // Desktop Row
+            const row = document.createElement('tr');
+            row.className = 'train-row cursor-pointer transition-all duration-150 hover:bg-gray-50';
+            row.dataset.index = train.index;
+            row.dataset.time = train.dep_time;
+            row.onclick = function() { toggleTrainSelection(this); };
+            
+            const badgeClass = train.train_name.includes('SRT') ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700';
+            const badgeText = train.train_name.includes('SRT') ? 'SRT' : 'KTX';
+            
+            row.innerHTML = `
+                <td class="px-6 py-5">
+                    <div class="flex items-center gap-3">
+                        <span class="px-2.5 py-1 text-xs font-bold rounded-md ${badgeClass}">${badgeText}</span>
+                        <div>
+                            <div class="font-semibold text-gray-900">${train.train_name}</div>
+                            <div class="text-xs text-gray-500">#${train.train_number}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-5">
+                    <div class="flex items-center gap-4">
+                        <div class="text-center">
+                            <div class="text-xl font-bold text-gray-900">${train.dep_time_formatted}</div>
+                            <div class="text-xs text-gray-500">${train.dep_station}</div>
+                        </div>
+                        <div class="flex flex-col items-center text-gray-400 px-2">
+                            <span class="text-xs whitespace-nowrap">${train.duration_formatted}</span>
+                            <span class="text-lg">→</span>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-xl font-bold text-gray-900">${train.arr_time_formatted}</div>
+                            <div class="text-xs text-gray-500">${train.arr_station}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-5 text-center">
+                    ${train.special_seat_available 
+                        ? '<span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">예약가능</span>' 
+                        : '<span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">매진</span>'}
+                </td>
+                <td class="px-6 py-5 text-center">
+                    ${train.general_seat_available 
+                        ? '<span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">예약가능</span>' 
+                        : '<span class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">매진</span>'}
+                </td>
+            `;
+            tableBody.appendChild(row);
+
+            // Mobile Card
+            const card = document.createElement('div');
+            card.className = 'train-row bg-white border rounded-xl p-4 cursor-pointer transition-all duration-150 hover:shadow-md';
+            card.dataset.index = train.index;
+            card.dataset.time = train.dep_time;
+            card.onclick = function() { toggleTrainSelection(this); };
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-1 text-xs font-bold rounded ${badgeClass}">${badgeText}</span>
+                        <span class="font-semibold text-gray-900">${train.train_name}</span>
+                        <span class="text-xs text-gray-500">#${train.train_number}</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-center gap-4 py-3 bg-gray-50 rounded-lg mb-3">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-900">${train.dep_time_formatted}</div>
+                        <div class="text-xs text-gray-500">${train.dep_station}</div>
+                    </div>
+                    <div class="flex flex-col items-center text-gray-400">
+                        <span class="text-xs">${train.duration_formatted}</span>
+                        <span class="text-xl">→</span>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-900">${train.arr_time_formatted}</div>
+                        <div class="text-xs text-gray-500">${train.arr_station}</div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <div class="flex-1 text-center">
+                        <div class="text-xs text-gray-500 mb-1">특실</div>
+                        ${train.special_seat_available 
+                            ? '<span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500 text-white w-full justify-center">예약가능</span>' 
+                            : '<span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-200 text-gray-500 w-full justify-center">매진</span>'}
+                    </div>
+                    <div class="flex-1 text-center">
+                        <div class="text-xs text-gray-500 mb-1">일반실</div>
+                        ${train.general_seat_available 
+                            ? '<span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500 text-white w-full justify-center">예약가능</span>' 
+                            : '<span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-200 text-gray-500 w-full justify-center">매진</span>'}
+                    </div>
+                </div>
+            `;
+            cardContainer.appendChild(card);
+        });
+
+        // Re-observe the new last item
+        if (typeof observeLastItem === 'function') {
+            observeLastItem();
+        }
     }
 
     // Reservation

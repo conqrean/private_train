@@ -2,6 +2,7 @@
 """SRT train service implementation."""
 import sys
 import os
+from datetime import datetime, timedelta
 
 # Add parent directory to path for SRT module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -57,19 +58,50 @@ class SRTService(BaseTrainService):
         time: str,
         include_no_seats: bool = False
     ) -> list[TrainInfo]:
-        """Search for SRT trains."""
+        """
+        Search for SRT trains with pagination-like logic.
+        Fetches approx 20 trains (2 iterations).
+        """
         if not self._client:
             raise SRTNotLoggedInError()
 
-        trains = self._client.search_train(
-            dep=dep,
-            arr=arr,
-            date=date,
-            time=time,
-            available_only=not include_no_seats
-        )
+        all_trains = []
+        current_time = time
+        
+        # Fetch up to 2 pages (approx 20 trains)
+        for _ in range(2):
+            try:
+                # search_train in srt.py fetches a batch.
+                # We don't use time_limit here to avoid fetching too many.
+                trains = self._client.search_train(
+                    dep=dep,
+                    arr=arr,
+                    date=date,
+                    time=current_time,
+                    available_only=not include_no_seats
+                )
 
-        return [self._to_train_info(t) for t in trains]
+                if not trains:
+                    break
+
+                all_trains.extend(trains)
+
+                # Update time for next iteration
+                last_train = trains[-1]
+                # SRT dep_time is HHMMSS
+                last_dt = datetime.strptime(f"{last_train.dep_date}{last_train.dep_time}", "%Y%m%d%H%M%S")
+                next_dt = last_dt + timedelta(seconds=1) # SRT logic usually adds 1 sec
+                current_time = next_dt.strftime("%H%M%S")
+                
+                # Check if we crossed into next day (though SRT search_train usually handles date)
+                # But search params take date and time.
+                if next_dt.strftime("%Y%m%d") != date:
+                    break
+
+            except Exception:
+                break
+        
+        return [self._to_train_info(t) for t in all_trains]
 
     def reserve(
         self,
