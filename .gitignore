@@ -42,3 +42,9 @@ app/static/css/output.css
 # OS
 .DS_Store
 Thumbs.db
+
+# Screenshots
+screenshots/
+
+# Claude Code
+.claude/
