@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Reservation routes with SSE support."""
+"""Reservation routes with SSE support and multi-provider session."""
 import json
 import time
 from datetime import datetime
+from functools import wraps
 from flask import Blueprint, request, session, redirect, url_for, Response, jsonify
 
-from app.routes.auth import get_service
-from app.services.base_service import SeatOption
+from app.services import ServiceManager, SeatOption
+from app.utils.session_helper import (
+    get_current_provider, is_logged_in,
+    get_search_state, set_selected_indices
+)
 
 bp = Blueprint('reservation', __name__)
 
@@ -16,11 +20,9 @@ STOP_MACRO = False
 
 def login_required(f):
     """Decorator to require login."""
-    from functools import wraps
-
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('logged_in'):
+        if not is_logged_in():
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -30,11 +32,16 @@ def login_required(f):
 @login_required
 def reserve_select():
     """Store selected trains for reservation."""
+    provider = get_current_provider()
     selected_indices = request.form.getlist('train_indices[]')
     seat_option = request.form.get('seat_option', 'GENERAL_FIRST')
 
-    session['selected_indices'] = [int(i) for i in selected_indices]
-    session['seat_option'] = seat_option
+    # Store for this provider
+    set_selected_indices(
+        provider,
+        [int(i) for i in selected_indices],
+        seat_option
+    )
 
     return jsonify({'success': True, 'count': len(selected_indices)})
 
@@ -46,11 +53,14 @@ def start_reservation():
     global STOP_MACRO
     STOP_MACRO = False
 
-    provider = session.get('provider', 'srt')
-    service = get_service(provider)
-    selected_indices = session.get('selected_indices', [])
-    seat_option_str = session.get('seat_option', 'GENERAL_FIRST')
-    trains_data = session.get('trains', [])
+    provider = get_current_provider()
+    service = ServiceManager.get_service(provider)
+
+    # Get provider-specific search state
+    search_state = get_search_state(provider)
+    selected_indices = search_state.get('selected_indices', [])
+    seat_option_str = search_state.get('seat_option', 'GENERAL_FIRST')
+    trains_data = search_state.get('trains', [])
 
     # Convert seat option
     seat_option_map = {
