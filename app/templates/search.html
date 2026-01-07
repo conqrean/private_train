@@ -8,78 +8,106 @@
     <div class="bg-white rounded-xl shadow-md p-6">
         <h2 class="text-lg font-semibold text-gray-800 mb-4">열차 검색</h2>
 
-        <form method="POST" class="space-y-4">
+        <form method="POST">
             <input type="hidden" name="search" value="1">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <!-- Departure Station -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">출발역</label>
-                    <select name="dep" id="depStation"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2
-                                   {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
-                        {% for station in stations %}
-                        <option value="{{ station }}" {% if form_data.dep == station %}selected{% endif %}>
-                            {{ station }}
-                        </option>
-                        {% endfor %}
-                    </select>
+            <!-- Improved Grid Search Bar -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Group 1: Route (Departure <-> Arrival) -->
+                <div class="col-span-1 lg:col-span-5 flex gap-2">
+                    <div class="flex-1 relative">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">출발역</label>
+                        <div class="relative">
+                            <select name="dep" id="depStation" data-testid="search-from"
+                                    class="w-full pl-4 pr-10 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800 appearance-none
+                                           {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                                {% for station in stations %}
+                                <option value="{{ station }}" {% if form_data.dep == station %}selected{% endif %}>
+                                    {{ station }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col justify-end pb-1">
+                        <button type="button" id="swapBtn" data-testid="swap-stations"
+                                class="p-2.5 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:shadow-sm transition-all duration-200 focus:outline-none">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 relative">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">도착역</label>
+                        <div class="relative">
+                            <select name="arr" id="arrStation" data-testid="search-to"
+                                    class="w-full pl-4 pr-10 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800 appearance-none
+                                           {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                                {% for station in stations %}
+                                <option value="{{ station }}" {% if form_data.arr == station %}selected{% endif %}>
+                                    {{ station }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Swap Button -->
-                <div class="hidden lg:flex items-end justify-center pb-2">
-                    <button type="button" id="swapBtn"
-                            class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
+                <!-- Group 2: Schedule (Date & Time) -->
+                <div class="col-span-1 lg:col-span-5 flex gap-3">
+                    <div class="flex-[3]">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">날짜</label>
+                        <div class="relative">
+                            <input type="text" name="date" id="dateInput" data-testid="date-picker" value="{{ form_data.date }}"
+                                   placeholder="날짜 선택"
+                                   class="w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800 cursor-pointer
+                                          {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-[2] relative">
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">시간</label>
+                        <div class="relative">
+                            <select name="time" data-testid="time-picker"
+                                    class="w-full pl-10 pr-10 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800 appearance-none
+                                           {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                                {% for h in range(24) %}
+                                {% set hh = "%02d:00"|format(h) %}
+                                <option value="{{ hh }}" {% if form_data.time == hh %}selected{% endif %}>
+                                    {{ "%02d시"|format(h) }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 3: Submit -->
+                <div class="col-span-1 lg:col-span-2 flex items-end">
+                    <button type="submit" data-testid="search-submit"
+                            class="w-full py-3.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2
+                                   {% if provider == 'srt' %}bg-srt-primary hover:bg-srt-secondary shadow-purple-200{% else %}bg-ktx-primary hover:bg-ktx-secondary shadow-red-200{% endif %}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        검색
                     </button>
                 </div>
-
-                <!-- Arrival Station -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">도착역</label>
-                    <select name="arr" id="arrStation"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2
-                                   {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
-                        {% for station in stations %}
-                        <option value="{{ station }}" {% if form_data.arr == station %}selected{% endif %}>
-                            {{ station }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Date -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">날짜</label>
-                    <input type="date" name="date" value="{{ form_data.date }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2
-                                  {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
-                </div>
-
-                <!-- Time -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">시간</label>
-                    <select name="time"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2
-                                   {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
-                        {% for h in range(24) %}
-                        {% set hh = "%02d:00"|format(h) %}
-                        <option value="{{ hh }}" {% if form_data.time == hh %}selected{% endif %}>
-                            {{ "%02d시"|format(h) }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <div class="flex justify-end">
-                <button type="submit"
-                        class="px-6 py-2 rounded-lg text-white font-medium transition-colors
-                               {% if provider == 'srt' %}bg-srt-primary hover:bg-srt-secondary{% else %}bg-ktx-primary hover:bg-ktx-secondary{% endif %}">
-                    검색하기
-                </button>
             </div>
         </form>
     </div>
@@ -101,7 +129,7 @@
                 <!-- Seat Option -->
                 <div class="flex items-center space-x-4">
                     <label class="text-sm text-gray-600">좌석 옵션:</label>
-                    <select id="seatOption" class="px-3 py-1 border border-gray-300 rounded-lg text-sm">
+                    <select id="seatOption" data-testid="seat-option" class="px-3 py-1 border border-gray-300 rounded-lg text-sm">
                         <option value="GENERAL_FIRST">일반실 우선</option>
                         <option value="GENERAL_ONLY">일반실만</option>
                         <option value="SPECIAL_FIRST">특실 우선</option>
@@ -111,57 +139,74 @@
             </div>
         </div>
 
-        <!-- Train Table -->
-        <div class="overflow-x-auto">
+        <!-- Train Table (Desktop) -->
+        <div class="hidden lg:block overflow-x-auto max-h-[480px] overflow-y-auto">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+                <thead class="bg-gray-50 sticky top-0 z-10">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">선택</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">열차</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">출발</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">도착</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">특실</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">일반실</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">열차</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">시간</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700">특실</th>
+                        <th class="px-6 py-4 text-center text-sm font-semibold text-gray-700">일반실</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for train in trains %}
-                    <tr class="train-row hover:bg-gray-50 cursor-pointer transition-colors" data-index="{{ loop.index0 }}">
-                        <td class="px-4 py-4">
-                            <input type="checkbox" name="train_indices[]" value="{{ loop.index0 }}"
-                                   class="h-4 w-4 rounded border-gray-300
-                                          {% if provider == 'srt' %}text-srt-primary focus:ring-srt-primary{% else %}text-ktx-primary focus:ring-ktx-primary{% endif %}">
+                    <tr class="train-row cursor-pointer transition-all duration-150 hover:bg-gray-50"
+                        data-index="{{ loop.index0 }}"
+                        data-testid="train-row-{{ loop.index0 }}"
+                        onclick="toggleTrainSelection(this)">
+                        <!-- Train Info with Type Badge -->
+                        <td class="px-6 py-5">
+                            <div class="flex items-center gap-3">
+                                {% if 'SRT' in train.train_name %}
+                                <span class="px-2.5 py-1 text-xs font-bold rounded-md bg-purple-100 text-purple-700">SRT</span>
+                                {% else %}
+                                <span class="px-2.5 py-1 text-xs font-bold rounded-md bg-red-100 text-red-700">KTX</span>
+                                {% endif %}
+                                <div>
+                                    <div class="font-semibold text-gray-900">{{ train.train_name }}</div>
+                                    <div class="text-xs text-gray-500">#{{ train.train_number }}</div>
+                                </div>
+                            </div>
                         </td>
-                        <td class="px-4 py-4">
-                            <div class="text-sm font-medium text-gray-900">{{ train.train_name }}</div>
-                            <div class="text-xs text-gray-500">#{{ train.train_number }}</div>
+                        <!-- Time Display with Duration -->
+                        <td class="px-6 py-5">
+                            <div class="flex items-center gap-4">
+                                <div class="text-center">
+                                    <div class="text-xl font-bold text-gray-900">{{ train.dep_time_formatted }}</div>
+                                    <div class="text-xs text-gray-500">{{ train.dep_station }}</div>
+                                </div>
+                                <div class="flex flex-col items-center text-gray-400 px-2">
+                                    <span class="text-xs whitespace-nowrap">{{ train.duration_formatted }}</span>
+                                    <span class="text-lg">→</span>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-xl font-bold text-gray-900">{{ train.arr_time_formatted }}</div>
+                                    <div class="text-xs text-gray-500">{{ train.arr_station }}</div>
+                                </div>
+                            </div>
                         </td>
-                        <td class="px-4 py-4">
-                            <div class="text-sm font-medium text-gray-900">{{ train.dep_time_formatted }}</div>
-                            <div class="text-xs text-gray-500">{{ train.dep_station }}</div>
-                        </td>
-                        <td class="px-4 py-4">
-                            <div class="text-sm font-medium text-gray-900">{{ train.arr_time_formatted }}</div>
-                            <div class="text-xs text-gray-500">{{ train.arr_station }}</div>
-                        </td>
-                        <td class="px-4 py-4 text-center">
+                        <!-- Special Seat Status -->
+                        <td class="px-6 py-5 text-center">
                             {% if train.special_seat_available %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span data-testid="seat-badge-special-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">
                                 예약가능
                             </span>
                             {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <span data-testid="seat-badge-special-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">
                                 매진
                             </span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-4 text-center">
+                        <!-- General Seat Status -->
+                        <td class="px-6 py-5 text-center">
                             {% if train.general_seat_available %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span data-testid="seat-badge-general-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white">
                                 예약가능
                             </span>
                             {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <span data-testid="seat-badge-general-{{ loop.index0 }}" class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-500">
                                 매진
                             </span>
                             {% endif %}
@@ -172,6 +217,71 @@
             </table>
         </div>
 
+        <!-- Train Cards (Mobile) -->
+        <div class="lg:hidden space-y-3 p-4">
+            {% for train in trains %}
+            <div class="train-row bg-white border rounded-xl p-4 cursor-pointer transition-all duration-150 hover:shadow-md"
+                 data-index="{{ loop.index0 }}"
+                 data-testid="train-row-{{ loop.index0 }}"
+                 onclick="toggleTrainSelection(this)">
+                <!-- Top: Train Info + Time -->
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        {% if 'SRT' in train.train_name %}
+                        <span class="px-2 py-1 text-xs font-bold rounded bg-purple-100 text-purple-700">SRT</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-bold rounded bg-red-100 text-red-700">KTX</span>
+                        {% endif %}
+                        <span class="font-semibold text-gray-900">{{ train.train_name }}</span>
+                        <span class="text-xs text-gray-500">#{{ train.train_number }}</span>
+                    </div>
+                </div>
+                <!-- Middle: Time Display -->
+                <div class="flex items-center justify-center gap-4 py-3 bg-gray-50 rounded-lg mb-3">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-900">{{ train.dep_time_formatted }}</div>
+                        <div class="text-xs text-gray-500">{{ train.dep_station }}</div>
+                    </div>
+                    <div class="flex flex-col items-center text-gray-400">
+                        <span class="text-xs">{{ train.duration_formatted }}</span>
+                        <span class="text-xl">→</span>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-900">{{ train.arr_time_formatted }}</div>
+                        <div class="text-xs text-gray-500">{{ train.arr_station }}</div>
+                    </div>
+                </div>
+                <!-- Bottom: Seat Status -->
+                <div class="flex gap-2">
+                    <div class="flex-1 text-center">
+                        <div class="text-xs text-gray-500 mb-1">특실</div>
+                        {% if train.special_seat_available %}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500 text-white w-full justify-center">
+                            예약가능
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-200 text-gray-500 w-full justify-center">
+                            매진
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1 text-center">
+                        <div class="text-xs text-gray-500 mb-1">일반실</div>
+                        {% if train.general_seat_available %}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500 text-white w-full justify-center">
+                            예약가능
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-200 text-gray-500 w-full justify-center">
+                            매진
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
         <!-- Action Buttons -->
         <div class="p-6 border-t bg-gray-50">
             <div class="flex flex-wrap items-center justify-between gap-4">
@@ -179,28 +289,28 @@
                 <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-600">예약 성공 시:</span>
                     <label class="inline-flex items-center">
-                        <input type="radio" name="sound_option" value="once" checked
+                        <input type="radio" name="sound_option" value="once" checked data-testid="sound-option-once"
                                class="{% if provider == 'srt' %}text-srt-primary{% else %}text-ktx-primary{% endif %}">
                         <span class="ml-2 text-sm text-gray-700">1회 알림</span>
                     </label>
                     <label class="inline-flex items-center">
-                        <input type="radio" name="sound_option" value="repeat"
+                        <input type="radio" name="sound_option" value="repeat" data-testid="sound-option-repeat"
                                class="{% if provider == 'srt' %}text-srt-primary{% else %}text-ktx-primary{% endif %}">
                         <span class="ml-2 text-sm text-gray-700">10초 반복</span>
                     </label>
-                    <button type="button" id="ackBtn" class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors">
+                    <button type="button" id="ackBtn" data-testid="ack-button" class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors">
                         ACK
                     </button>
                 </div>
 
                 <!-- Reserve Buttons -->
                 <div class="flex space-x-3">
-                    <button type="button" id="startBtn"
+                    <button type="button" id="startBtn" data-testid="reserve-start"
                             class="px-6 py-2 rounded-lg text-white font-medium transition-colors
                                    {% if provider == 'srt' %}bg-srt-primary hover:bg-srt-secondary{% else %}bg-ktx-primary hover:bg-ktx-secondary{% endif %}">
                         예약 시작
                     </button>
-                    <button type="button" id="stopBtn"
+                    <button type="button" id="stopBtn" data-testid="reserve-stop"
                             class="px-6 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors hidden">
                         중단
                     </button>
@@ -209,22 +319,91 @@
         </div>
     </div>
 
-    <!-- Log Panel -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden">
-        <div class="p-4 border-b">
-            <h3 class="text-sm font-medium text-gray-700">예약 로그</h3>
-        </div>
-        <div id="logContainer" class="log-container h-48 overflow-y-auto p-4 bg-gray-900 text-gray-100 text-sm">
-            <div class="text-gray-500">대기 중...</div>
-        </div>
-    </div>
     {% endif %}
 </div>
+
+<!-- Log Drawer -->
+{% if trains %}
+<div id="logDrawer" data-testid="log-panel"
+     class="fixed bottom-0 left-0 right-0 z-40 transform transition-transform duration-300 ease-in-out"
+     style="transform: translateY(calc(100% - 48px));">
+
+    <!-- Drawer Handle (Always Visible) -->
+    <div class="bg-gray-800 text-white px-4 py-3 rounded-t-xl cursor-pointer flex items-center justify-between shadow-lg"
+         onclick="toggleLogDrawer()" data-testid="log-toggle-button">
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse" id="logStatusDot" data-testid="log-status-indicator"></span>
+            <span class="text-sm font-medium">예약 로그</span>
+            <span id="selectedCount" class="text-xs text-gray-400 ml-2"></span>
+        </div>
+        <svg id="drawerIcon" class="w-5 h-5 transform rotate-180 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+        </svg>
+    </div>
+
+    <!-- Drawer Content -->
+    <div id="logContainer" data-testid="log-stream-container" class="log-container h-48 overflow-y-auto p-4 bg-gray-900 text-gray-100 text-sm">
+        <div class="text-gray-500">대기 중...</div>
+    </div>
+</div>
+
+<!-- Minimal spacer for drawer handle -->
+<div class="h-14"></div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Log drawer toggle function
+function toggleLogDrawer() {
+    const drawer = document.getElementById('logDrawer');
+    const icon = document.getElementById('drawerIcon');
+    const isOpen = drawer.style.transform === 'translateY(0px)';
+
+    if (isOpen) {
+        drawer.style.transform = 'translateY(calc(100% - 48px))';
+        icon.classList.add('rotate-180');
+    } else {
+        drawer.style.transform = 'translateY(0px)';
+        icon.classList.remove('rotate-180');
+    }
+}
+
+// Train selection toggle function
+function toggleTrainSelection(row) {
+    row.classList.toggle('selected');
+    updateSelectedCount();
+}
+
+// Update selected count display
+function updateSelectedCount() {
+    const selected = document.querySelectorAll('.train-row.selected');
+    const countEl = document.getElementById('selectedCount');
+    if (countEl) {
+        countEl.textContent = selected.length > 0 ? `${selected.length}개 선택됨` : '';
+    }
+}
+
+// Get selected train indices
+function getSelectedTrainIndices() {
+    const selected = document.querySelectorAll('.train-row.selected');
+    return Array.from(selected).map(row => row.dataset.index);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Flatpickr for date input
+    const dateInput = document.getElementById('dateInput');
+    if (dateInput) {
+        flatpickr(dateInput, {
+            locale: 'ko',
+            dateFormat: 'Y-m-d',
+            minDate: 'today',
+            maxDate: new Date().fp_incr(30), // 30 days from today
+            defaultDate: dateInput.value || 'today',
+            disableMobile: true
+        });
+    }
+
     // Swap stations
     const swapBtn = document.getElementById('swapBtn');
     const depStation = document.getElementById('depStation');
@@ -237,22 +416,6 @@ document.addEventListener('DOMContentLoaded', function() {
             arrStation.value = temp;
         });
     }
-
-    // Row click to toggle checkbox
-    document.querySelectorAll('.train-row').forEach(row => {
-        row.addEventListener('click', function(e) {
-            if (e.target.type !== 'checkbox') {
-                const checkbox = this.querySelector('input[type="checkbox"]');
-                checkbox.checked = !checkbox.checked;
-                this.classList.toggle('selected', checkbox.checked);
-            }
-        });
-
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        checkbox.addEventListener('change', function() {
-            row.classList.toggle('selected', this.checked);
-        });
-    });
 
     // Reservation
     const startBtn = document.getElementById('startBtn');
@@ -303,9 +466,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (startBtn) {
         startBtn.addEventListener('click', async function() {
-            const checkboxes = document.querySelectorAll('input[name="train_indices[]"]:checked');
-            if (checkboxes.length === 0) {
-                alert('예약할 열차를 선택해주세요.');
+            const selectedIndices = getSelectedTrainIndices();
+            if (selectedIndices.length === 0) {
+                alert('예약할 열차를 선택해주세요.\n열차 행을 클릭하면 선택됩니다.');
                 return;
             }
 
@@ -313,7 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Send selected trains
             const formData = new FormData();
-            checkboxes.forEach(cb => formData.append('train_indices[]', cb.value));
+            selectedIndices.forEach(idx => formData.append('train_indices[]', idx));
             formData.append('seat_option', seatOption);
 
             await fetch('/reserve_select', { method: 'POST', body: formData });

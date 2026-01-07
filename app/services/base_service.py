@@ -2,6 +2,7 @@
 """Base service abstraction layer for train reservation."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -45,6 +46,27 @@ class TrainInfo:
     def arr_time_formatted(self) -> str:
         """Return formatted arrival time (HH:MM)."""
         return f"{self.arr_time[:2]}:{self.arr_time[2:4]}"
+
+    @property
+    def duration_minutes(self) -> int:
+        """Calculate travel duration in minutes."""
+        try:
+            dep = datetime.strptime(f"{self.dep_date}{self.dep_time}", "%Y%m%d%H%M%S")
+            arr = datetime.strptime(f"{self.arr_date}{self.arr_time}", "%Y%m%d%H%M%S")
+            return int((arr - dep).total_seconds() // 60)
+        except (ValueError, TypeError):
+            return 0
+
+    @property
+    def duration_formatted(self) -> str:
+        """Format duration as '2시간 40분'."""
+        mins = self.duration_minutes
+        if mins <= 0:
+            return ""
+        hours, remaining_mins = divmod(mins, 60)
+        if hours > 0:
+            return f"{hours}시간 {remaining_mins}분" if remaining_mins > 0 else f"{hours}시간"
+        return f"{remaining_mins}분"
 
     def has_seat(self) -> bool:
         """Check if any seat is available."""
