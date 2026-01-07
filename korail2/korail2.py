@@ -11,15 +11,11 @@ import requests
 import itertools
 import sys
 import base64
+from functools import reduce
 
 from datetime import datetime, timedelta
-from six import with_metaclass
 from pprint import pprint
 from datetime import timezone
-
-# import crypto
-import sys
-# sys.modules['Crypto'] = crypto
 
 from Crypto.Util.Padding import pad
 from Crypto.Cipher import AES
@@ -29,13 +25,6 @@ try:
     import simplejson as json
 except ImportError:
     import json
-
-
-def _python3():
-    return sys.version_info > (3, 0)
-
-if _python3():
-    from functools import reduce
 
 EMAIL_REGEX = re.compile(r"[^@]+@[^@]+\.[^@]+")
 PHONE_NUMBER_REGEX = re.compile(r"(\d{3})-(\d{3,4})-(\d{4})")
@@ -70,15 +59,8 @@ DEFAULT_USER_AGENT = "Dalvik/2.1.0 (Linux; U; Android 5.1.1; Nexus 4 Build/LMY48
 
 
 def _get_utf8(data, key, default=None):
-    v = data.get(key, default)
-
-    if _python3():
-        return v
-
-    if isinstance(v, basestring):
-        return v.encode('utf-8')
-    else:
-        return v
+    """Get value from data dict. Python 3.12+ compatible."""
+    return data.get(key, default)
 
 class Schedule(object):
     """Korail train object. Highly inspired by `korail.py
@@ -505,7 +487,7 @@ class ExceptionForm(type):
         return item in cls.codes
 
 
-class KorailError(with_metaclass(ExceptionForm, Exception)):
+class KorailError(Exception, metaclass=ExceptionForm):
     """Korail Base Error Class"""
 
     def __init__(self, msg, code):

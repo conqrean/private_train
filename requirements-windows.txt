@@ -1,0 +1,6 @@
+# Windows-specific dependencies
+-r requirements.txt
+
+# Windows PE file handling (PyInstaller)
+pywin32-ctypes==0.2.3
+pefile==2023.2.7

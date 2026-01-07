@@ -1,6 +1,44 @@
-.vscode
-__pycache__
-build/
-dist/
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Virtual environments
 venv/
 .venv/
+ENV/
+
+# PyInstaller
+# Note: keep build/ folder (contains our build scripts)
+# Ignore PyInstaller temp files
+*.spec.bak
+*.manifest
+
+# Distribution
+dist/
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Tailwind CSS build output (regenerated)
+app/static/css/output.css
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db

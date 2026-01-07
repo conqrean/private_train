@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}열차 예약{% endblock %}</title>
+    <!-- Tailwind CSS CDN (for development) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        srt: {
+                            primary: '#7C3AED',
+                            secondary: '#5B21B6',
+                            light: '#A78BFA'
+                        },
+                        ktx: {
+                            primary: '#EF4444',
+                            secondary: '#DC2626',
+                            light: '#FCA5A5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .train-row.selected { background-color: #FEF3C7; }
+        .log-container { font-family: 'Consolas', 'Monaco', monospace; }
+    </style>
+</head>
+<body class="h-full bg-gray-50">
+    <div class="min-h-full">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm border-b">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <a href="/" class="text-xl font-bold text-gray-800">
+                            {% if provider == 'srt' %}
+                            <span class="text-srt-primary">SRT</span>
+                            {% else %}
+                            <span class="text-ktx-primary">KTX</span>
+                            {% endif %}
+                            예약
+                        </a>
+
+                        {% if session.get('logged_in') %}
+                        <div class="flex space-x-2">
+                            <a href="{{ url_for('auth.switch_provider', provider='srt') }}"
+                               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                                      {% if provider == 'srt' %}bg-srt-primary text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                                SRT
+                            </a>
+                            <a href="{{ url_for('auth.switch_provider', provider='korail') }}"
+                               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                                      {% if provider == 'korail' %}bg-ktx-primary text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                                KTX/코레일
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if session.get('logged_in') %}
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-600">{{ session.get('user_id', '') }}</span>
+                        <form action="{{ url_for('auth.logout') }}" method="POST">
+                            <button type="submit"
+                                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                                로그아웃
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t mt-auto">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+                <p class="text-center text-sm text-gray-500">
+                    열차 예약 시스템 v2.0 - 개인 학습용
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Audio for success notification -->
+    <audio id="successSound" preload="auto">
+        <source src="{{ url_for('static', filename='success_sound.mp3') }}" type="audio/mpeg">
+    </audio>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
