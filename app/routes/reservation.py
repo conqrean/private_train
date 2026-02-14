@@ -13,13 +13,35 @@ from app.utils.session_helper import (
     get_credentials, set_auth_state
 )
 
+# Import exception types for error detection
+try:
+    from korail2 import NeedToLoginError as KorailLoginError
+except ImportError:
+    KorailLoginError = None
+
+try:
+    from SRT.errors import SRTNotLoggedInError, SRTLoginError
+except ImportError:
+    SRTNotLoggedInError = None
+    SRTLoginError = None
+
 bp = Blueprint('reservation', __name__)
 
 # Global stop flag for macro
 STOP_MACRO = False
 
 # Maximum recovery attempts
-MAX_RECOVERY_ATTEMPTS = 3
+MAX_RECOVERY_ATTEMPTS = 5
+
+
+def is_login_error(error: Exception, provider: str) -> bool:
+    """Check if the error is a login-related error that can be recovered."""
+    if provider == 'korail':
+        return KorailLoginError and isinstance(error, KorailLoginError)
+    elif provider == 'srt':
+        return (SRTNotLoggedInError and isinstance(error, SRTNotLoggedInError)) or \
+               (SRTLoginError and isinstance(error, SRTLoginError))
+    return False
 
 
 def login_required(f):
@@ -185,37 +207,44 @@ def start_reservation():
                         error_msg = str(reserve_error)
                         yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): 예약 오류 - {error_msg}'})}\n\n"
                         
-                        # Check if it's a login-related error
-                        if 'login' in error_msg.lower() or 'auth' in error_msg.lower():
+                        # Check if it's a login-related error that needs recovery
+                        if is_login_error(reserve_error, provider):
                             consecutive_errors += 1
 
             except Exception as e:
-                consecutive_errors += 1
                 error_msg = str(e)
                 error_type = type(e).__name__
                 
                 yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 오류 ({error_type}): {error_msg}'})}\n\n"
                 
-                # Attempt auto-recovery if we have consecutive errors
-                if consecutive_errors >= 2 and recovery_attempts < MAX_RECOVERY_ATTEMPTS:
-                    recovery_attempts += 1
-                    yield f"data: {json.dumps({'type': 'warning', 'message': f'[{timestamp}] 자동 복구 시도 중... ({recovery_attempts}/{MAX_RECOVERY_ATTEMPTS})'})}\n\n"
+                # Only attempt recovery for login-related errors
+                if is_login_error(e, provider):
+                    consecutive_errors += 1
                     
-                    success, recovery_msg = attempt_recovery(provider, service)
-                    
-                    if success:
-                        yield f"data: {json.dumps({'type': 'success', 'message': f'[{timestamp}] {recovery_msg} - 예약 재시작'})}\n\n"
-                        consecutive_errors = 0
-                        time.sleep(1)  # Brief pause before resuming
-                        continue
-                    else:
-                        yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] {recovery_msg}'})}\n\n"
+                    # Attempt auto-recovery after login error
+                    if recovery_attempts < MAX_RECOVERY_ATTEMPTS:
+                        recovery_attempts += 1
+                        yield f"data: {json.dumps({'type': 'warning', 'message': f'[{timestamp}] 로그인 오류 감지 - 자동 복구 시도 중... ({recovery_attempts}/{MAX_RECOVERY_ATTEMPTS})'})}\n\n"
                         
-                        # If max recovery attempts reached, stop
-                        if recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
-                            yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 최대 복구 시도 횟수 초과. 예약을 중단합니다.'})}\n\n"
-                            STOP_MACRO = True
-                            return
+                        success, recovery_msg = attempt_recovery(provider, service)
+                        
+                        if success:
+                            yield f"data: {json.dumps({'type': 'success', 'message': f'[{timestamp}] {recovery_msg} - 예약 재시작'})}\n\n"
+                            consecutive_errors = 0
+                            time.sleep(1)  # Brief pause before resuming
+                            continue
+                        else:
+                            yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] {recovery_msg}'})}\n\n"
+                            
+                            # If max recovery attempts reached, stop
+                            if recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
+                                yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 최대 복구 시도 횟수 초과. 예약을 중단합니다.'})}\n\n"
+                                STOP_MACRO = True
+                                return
+                else:
+                    # For non-login errors, just log and continue without recovery
+                    yield f"data: {json.dumps({'type': 'warning', 'message': f'[{timestamp}] 일시적 오류 - 재시도 중...'})}\n\n"
+                    time.sleep(1)
 
             # Wait before next attempt
             time.sleep(0.5)
