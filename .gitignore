@@ -27,7 +27,6 @@ build/*/
 
 # Distribution
 dist/
-*.exe
 
 # Node.js
 node_modules/
