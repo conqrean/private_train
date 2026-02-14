@@ -42,10 +42,15 @@ cd private_train
 python3.12 -m venv venv
 source venv/bin/activate
 
-# Windows
+# Windows (PowerShell) - 권장
+.\activate.ps1
+
+# Windows (수동 활성화)
 python -m venv venv
-venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 ```
+
+**⚠️ 중요: 가상환경에서는 `python` 명령어를 사용하세요** (python3 아님!)
 
 ### 3. 의존성 설치
 
@@ -61,11 +66,15 @@ pip install -r requirements-windows.txt
 
 ## 실행
 
+**가상환경 활성화 후:**
+
 ```bash
 python main.py
 ```
 
 브라우저에서 `http://localhost:5050` 접속
+
+**⚠️ 주의**: `python3` 명령어가 아닌 `python`을 사용하세요!
 
 ---
 

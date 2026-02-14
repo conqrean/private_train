@@ -10,8 +10,12 @@ Write-Host "Virtual environment activated!" -ForegroundColor Green
 Write-Host "Python version:" -ForegroundColor Yellow
 python --version
 Write-Host ""
-Write-Host "To run the application, type: " -NoNewline -ForegroundColor White
+Write-Host "IMPORTANT: Use " -NoNewline -ForegroundColor Red
+Write-Host "python" -NoNewline -ForegroundColor Yellow
+Write-Host " (not python3) in virtual environment!" -ForegroundColor Red
+Write-Host ""
+Write-Host "To run the application: " -NoNewline -ForegroundColor White
 Write-Host "python main.py" -ForegroundColor Green
-Write-Host "To deactivate, type: " -NoNewline -ForegroundColor White
+Write-Host "To deactivate         : " -NoNewline -ForegroundColor White
 Write-Host "deactivate" -ForegroundColor Green
 Write-Host ""

@@ -10,6 +10,8 @@ echo Virtual environment activated!
 echo Python version:
 python --version
 echo.
-echo To run the application, type: python main.py
-echo To deactivate, type: deactivate
+echo IMPORTANT: Use 'python' (not python3) in virtual environment!
+echo.
+echo To run the application: python main.py
+echo To deactivate         : deactivate
 echo.
