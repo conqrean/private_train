@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 # Add parent directory to path for korail2 module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from korail2 import Korail, KorailError, NeedToLoginError, SoldOutError, ReserveOption
+from korail2 import Korail, KorailError, NeedToLoginError, SoldOutError, NoResultsError, ReserveOption
 
 from app.services.base_service import (
     BaseTrainService,
