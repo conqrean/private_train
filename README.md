@@ -66,15 +66,61 @@ pip install -r requirements-windows.txt
 
 ## 실행
 
-**가상환경 활성화 후:**
+**빠른 실행 (Windows - 권장):**
+
+```powershell
+.\run.ps1
+```
+
+이 스크립트는 자동으로:
+- 가상환경 활성화
+- Python 캐시 삭제 (코드 변경사항 즉시 반영)
+- 애플리케이션 실행
+
+**수동 실행:**
 
 ```bash
+# 1. 가상환경 활성화
+.\activate.ps1  # Windows
+# source venv/bin/activate  # Linux/macOS
+
+# 2. 실행
 python main.py
 ```
 
 브라우저에서 `http://localhost:5050` 접속
 
 **⚠️ 주의**: `python3` 명령어가 아닌 `python`을 사용하세요!
+
+---
+
+## 트러블슈팅
+
+### "ModuleNotFoundError: No module named 'flask'"
+
+**원인**: `python3` 명령어가 시스템 Python을 가리킵니다.
+
+**해결**:
+```powershell
+# python3 대신 python 사용
+python main.py
+
+# 또는 run.ps1 사용
+.\run.ps1
+```
+
+### 코드 변경사항이 반영되지 않음
+
+**원인**: Python 캐시 파일(.pyc)이 이전 코드를 캐시
+
+**해결**:
+```powershell
+# 캐시 삭제
+Get-ChildItem -Recurse -Include *.pyc,__pycache__ | Remove-Item -Recurse -Force
+
+# 또는 run.ps1 사용 (자동 캐시 삭제)
+.\run.ps1
+```
 
 ---
 
