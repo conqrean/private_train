@@ -18,9 +18,11 @@ ENV/
 
 # PyInstaller
 # Note: keep build/ folder (contains our build scripts)
-# Ignore PyInstaller temp files
+# Ignore PyInstaller temp files and build outputs
 *.spec.bak
 *.manifest
+build/*/
+!build/build.py
 
 # Distribution
 dist/

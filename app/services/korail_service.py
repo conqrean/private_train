@@ -2,6 +2,7 @@
 """Korail train service implementation."""
 import sys
 import os
+import time
 from datetime import datetime, timedelta
 
 # Add parent directory to path for korail2 module
@@ -91,6 +92,9 @@ class KorailService(BaseTrainService):
                     break
                     
                 all_trains.extend(trains)
+                
+                # Add 1 second delay to avoid rate limiting (max 60 API calls per minute)
+                time.sleep(1)
                 
                 # Update time for next page
                 # Parse last train time and add 1 minute

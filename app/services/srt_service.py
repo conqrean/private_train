@@ -2,6 +2,7 @@
 """SRT train service implementation."""
 import sys
 import os
+import time
 from datetime import datetime, timedelta
 
 # Add parent directory to path for SRT module
@@ -85,6 +86,9 @@ class SRTService(BaseTrainService):
                     break
 
                 all_trains.extend(trains)
+
+                # Add 1 second delay to avoid rate limiting (max 60 API calls per minute)
+                time.sleep(1)
 
                 # Update time for next iteration
                 last_train = trains[-1]
