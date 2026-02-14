@@ -9,13 +9,17 @@ from flask import Blueprint, request, session, redirect, url_for, Response, json
 from app.services import ServiceManager, SeatOption
 from app.utils.session_helper import (
     get_current_provider, is_logged_in,
-    get_search_state, set_selected_indices
+    get_search_state, set_selected_indices,
+    get_credentials, set_auth_state
 )
 
 bp = Blueprint('reservation', __name__)
 
 # Global stop flag for macro
 STOP_MACRO = False
+
+# Maximum recovery attempts
+MAX_RECOVERY_ATTEMPTS = 3
 
 
 def login_required(f):
@@ -46,6 +50,36 @@ def reserve_select():
     return jsonify({'success': True, 'count': len(selected_indices)})
 
 
+def attempt_recovery(provider: str, service) -> tuple[bool, str]:
+    """Attempt to recover from connection/login errors.
+    
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    try:
+        # Get stored credentials
+        credentials = get_credentials(provider)
+        if not credentials:
+            return False, "저장된 로그인 정보가 없습니다."
+        
+        # Logout first to clear any stale state
+        try:
+            service.logout()
+        except:
+            pass
+        
+        # Attempt re-login
+        success = service.login(credentials['user_id'], credentials['password'])
+        if success:
+            set_auth_state(provider, credentials['user_id'])
+            return True, "재로그인 성공"
+        else:
+            return False, "재로그인 실패"
+            
+    except Exception as e:
+        return False, f"리커버리 중 오류: {str(e)}"
+
+
 @bp.route('/start_reservation')
 @login_required
 def start_reservation():
@@ -74,6 +108,8 @@ def start_reservation():
     def generate():
         global STOP_MACRO
         attempt = 0
+        consecutive_errors = 0
+        recovery_attempts = 0
 
         # Collect selected trains info
         selected_trains = []
@@ -104,6 +140,9 @@ def start_reservation():
                     include_no_seats=True
                 )
 
+                # Reset error counter on successful query
+                consecutive_errors = 0
+
                 # Match selected trains with fresh data
                 for train_info in selected_trains:
                     if STOP_MACRO:
@@ -132,17 +171,51 @@ def start_reservation():
                     # Found a train with available seats - attempt reservation
                     yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): 좌석 있음! 예약 시도 중...'})}\n\n"
                     
-                    result = service.reserve(matching_train, seat_option)
+                    try:
+                        result = service.reserve(matching_train, seat_option)
 
-                    if result.success:
-                        yield f"data: {json.dumps({'type': 'success', 'message': f'예약 성공! {train_name} ({dep_time})', 'reservation_id': result.reservation_id})}\n\n"
-                        STOP_MACRO = True
-                        return
-                    else:
-                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): {result.message}'})}\n\n"
+                        if result.success:
+                            yield f"data: {json.dumps({'type': 'success', 'message': f'예약 성공! {train_name} ({dep_time})', 'reservation_id': result.reservation_id})}\n\n"
+                            STOP_MACRO = True
+                            return
+                        else:
+                            yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): {result.message}'})}\n\n"
+                    
+                    except Exception as reserve_error:
+                        error_msg = str(reserve_error)
+                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): 예약 오류 - {error_msg}'})}\n\n"
+                        
+                        # Check if it's a login-related error
+                        if 'login' in error_msg.lower() or 'auth' in error_msg.lower():
+                            consecutive_errors += 1
 
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 오류: {str(e)}'})}\n\n"
+                consecutive_errors += 1
+                error_msg = str(e)
+                error_type = type(e).__name__
+                
+                yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 오류 ({error_type}): {error_msg}'})}\n\n"
+                
+                # Attempt auto-recovery if we have consecutive errors
+                if consecutive_errors >= 2 and recovery_attempts < MAX_RECOVERY_ATTEMPTS:
+                    recovery_attempts += 1
+                    yield f"data: {json.dumps({'type': 'warning', 'message': f'[{timestamp}] 자동 복구 시도 중... ({recovery_attempts}/{MAX_RECOVERY_ATTEMPTS})'})}\n\n"
+                    
+                    success, recovery_msg = attempt_recovery(provider, service)
+                    
+                    if success:
+                        yield f"data: {json.dumps({'type': 'success', 'message': f'[{timestamp}] {recovery_msg} - 예약 재시작'})}\n\n"
+                        consecutive_errors = 0
+                        time.sleep(1)  # Brief pause before resuming
+                        continue
+                    else:
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] {recovery_msg}'})}\n\n"
+                        
+                        # If max recovery attempts reached, stop
+                        if recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
+                            yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 최대 복구 시도 횟수 초과. 예약을 중단합니다.'})}\n\n"
+                            STOP_MACRO = True
+                            return
 
             # Wait before next attempt
             time.sleep(0.5)
