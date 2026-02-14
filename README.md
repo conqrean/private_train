@@ -43,11 +43,11 @@ python3.12 -m venv venv
 source venv/bin/activate
 
 # Windows (PowerShell) - 권장
-.\activate.ps1
+.\run.ps1  # 가상환경 생성 후 바로 실행 가능
 
-# Windows (수동 활성화)
+# Windows (수동 가상환경 생성)
 python -m venv venv
-.\venv\Scripts\Activate.ps1
+.\scripts\activate.ps1
 ```
 
 **⚠️ 중요: 가상환경에서는 `python` 명령어를 사용하세요** (python3 아님!)
@@ -66,31 +66,37 @@ pip install -r requirements-windows.txt
 
 ## 실행
 
-**빠른 실행 (Windows - 권장):**
+### 방법 1: 실행 파일 (가장 간단)
 
+**Windows 사용자:**
 ```powershell
-.\run.ps1
+.\TrainReservationApp.exe
+```
+별도 설치 없이 바로 실행 가능합니다.
+
+### 방법 2: 스크립트 실행 (개발자)
+
+**빠른 실행:**
+```powershell
+.\run.ps1  # Windows
 ```
 
 이 스크립트는 자동으로:
 - 가상환경 활성화
-- Python 캐시 삭제 (코드 변경사항 즉시 반영)
+- Python 캐시 삭제
 - 애플리케이션 실행
 
 **수동 실행:**
-
 ```bash
 # 1. 가상환경 활성화
-.\activate.ps1  # Windows
+.\scripts\activate.ps1  # Windows
 # source venv/bin/activate  # Linux/macOS
 
-# 2. 실행
+# 2. 실행 (python3 아님!)
 python main.py
 ```
 
 브라우저에서 `http://localhost:5050` 접속
-
-**⚠️ 주의**: `python3` 명령어가 아닌 `python`을 사용하세요!
 
 ---
 

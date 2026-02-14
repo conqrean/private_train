@@ -12,16 +12,17 @@ if (-not (Test-Path ".\venv\Scripts\python.exe")) {
 }
 
 # Activate venv
-Write-Host "Activating virtual environment..." -ForegroundColor Yellow
+Write-Host "✓ Activating virtual environment..." -ForegroundColor Yellow
 & ".\venv\Scripts\Activate.ps1"
 
-# Clear Python cache
-Write-Host "Clearing Python cache..." -ForegroundColor Yellow
+# Clear Python cache (실행 시 최신 코드 보장)
+Write-Host "✓ Clearing Python cache..." -ForegroundColor Yellow
 Get-ChildItem -Recurse -Path app,korail2,SRT -Include *.pyc,__pycache__ -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
-Write-Host "Starting application..." -ForegroundColor Green
+Write-Host "🚄 Starting application..." -ForegroundColor Green
+Write-Host "💡 Tip: Press Ctrl+C to stop (cache will be cleaned automatically)" -ForegroundColor Cyan
 Write-Host ""
 
-# Run with venv python
+# Run with venv python (프로그램 종료 시 자동 캐시 정리)
 python main.py
