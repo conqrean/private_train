@@ -75,35 +75,45 @@ def start_reservation():
         global STOP_MACRO
         attempt = 0
 
+        # Collect selected trains info
+        selected_trains = []
+        for idx in selected_indices:
+            if idx < len(trains_data):
+                selected_trains.append(trains_data[idx])
+        
+        if not selected_trains:
+            yield f"data: {json.dumps({'type': 'error', 'message': '선택된 열차가 없습니다.'})}\n\n"
+            return
+
+        # Get earliest train for search
+        earliest_train = min(selected_trains, key=lambda t: t['dep_time'])
+
         while not STOP_MACRO:
             attempt += 1
             timestamp = datetime.now().strftime('%H:%M:%S')
 
-            for idx in selected_indices:
-                if STOP_MACRO:
-                    yield f"data: {json.dumps({'type': 'stopped', 'message': '예약이 중단되었습니다.'})}\n\n"
-                    return
+            try:
+                # Single search to get all fresh train data
+                yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] 시도 #{attempt}: 열차 정보 조회 중...'})}\n\n"
+                
+                fresh_trains = service.search(
+                    dep=earliest_train['dep_station'],
+                    arr=earliest_train['arr_station'],
+                    date=earliest_train['dep_date'],
+                    time=earliest_train['dep_time'],
+                    include_no_seats=True
+                )
 
-                if idx >= len(trains_data):
-                    continue
+                # Match selected trains with fresh data
+                for train_info in selected_trains:
+                    if STOP_MACRO:
+                        yield f"data: {json.dumps({'type': 'stopped', 'message': '예약이 중단되었습니다.'})}\n\n"
+                        return
 
-                train_info = trains_data[idx]
-                train_name = train_info['train_name']
-                dep_time = f"{train_info['dep_time'][:2]}:{train_info['dep_time'][2:4]}"
+                    train_name = train_info['train_name']
+                    dep_time = f"{train_info['dep_time'][:2]}:{train_info['dep_time'][2:4]}"
 
-                yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] 시도 #{attempt}: {train_name} ({dep_time}) 예약 시도 중...'})}\n\n"
-
-                try:
-                    # Re-search to get fresh train data
-                    fresh_trains = service.search(
-                        dep=train_info['dep_station'],
-                        arr=train_info['arr_station'],
-                        date=train_info['dep_date'],
-                        time=train_info['dep_time'],
-                        include_no_seats=True
-                    )
-
-                    # Find matching train
+                    # Find matching train in fresh data
                     matching_train = None
                     for t in fresh_trains:
                         if (t.train_number == train_info['train_number'] and
@@ -112,14 +122,16 @@ def start_reservation():
                             break
 
                     if not matching_train:
-                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name}: 열차를 찾을 수 없습니다.'})}\n\n"
+                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): 열차를 찾을 수 없음'})}\n\n"
                         continue
 
                     if not matching_train.has_seat():
-                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name}: 좌석 없음'})}\n\n"
+                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): 좌석 없음'})}\n\n"
                         continue
 
-                    # Attempt reservation
+                    # Found a train with available seats - attempt reservation
+                    yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): 좌석 있음! 예약 시도 중...'})}\n\n"
+                    
                     result = service.reserve(matching_train, seat_option)
 
                     if result.success:
@@ -127,10 +139,10 @@ def start_reservation():
                         STOP_MACRO = True
                         return
                     else:
-                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name}: {result.message}'})}\n\n"
+                        yield f"data: {json.dumps({'type': 'log', 'message': f'[{timestamp}] {train_name} ({dep_time}): {result.message}'})}\n\n"
 
-                except Exception as e:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 오류: {str(e)}'})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'[{timestamp}] 오류: {str(e)}'})}\n\n"
 
             # Wait before next attempt
             time.sleep(0.5)

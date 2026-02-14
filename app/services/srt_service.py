@@ -87,8 +87,8 @@ class SRTService(BaseTrainService):
 
                 all_trains.extend(trains)
 
-                # Add 1 second delay to avoid rate limiting (max 60 API calls per minute)
-                time.sleep(1)
+                # Add 1.5 second delay to avoid rate limiting (max 40 API calls per minute)
+                time.sleep(1.5)
 
                 # Update time for next iteration
                 last_train = trains[-1]
