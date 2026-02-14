@@ -56,7 +56,9 @@ def signal_handler(signum, frame):
 # Register cleanup handlers
 atexit.register(cleanup_cache)
 signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+# SIGTERM is not available on Windows
+if hasattr(signal, 'SIGTERM'):
+    signal.signal(signal.SIGTERM, signal_handler)
 
 app = create_app()
 
