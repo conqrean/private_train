@@ -11,7 +11,11 @@ import requests
 import itertools
 import sys
 import base64
+import warnings
 from functools import reduce
+
+# Suppress urllib3 InsecureRequestWarning
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 from datetime import datetime, timedelta
 from pprint import pprint
