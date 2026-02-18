@@ -111,6 +111,10 @@ def _setup_telegram_callbacks():
                 return {'success': False, 'message': str(e)}
 
         elif action == 'start':
+            # Prevent concurrent macro execution
+            if tg._macro_running:
+                return {'success': False, 'message': '현재 매크로가 실행 중입니다. /stop 후 다시 시도해주세요.'}
+
             # Start reservation macro in background thread
             trains = kwargs.get('trains', [])
             train_indices = kwargs.get('train_indices', [])
@@ -328,6 +332,13 @@ def attempt_recovery(provider: str, service) -> tuple[bool, str]:
 @login_required
 def start_reservation():
     """SSE endpoint for reservation attempts."""
+    # Prevent concurrent macro execution (e.g. Telegram macro already running)
+    tg = TelegramService.get_instance()
+    if tg._macro_running:
+        def error_stream():
+            yield f"data: {json.dumps({'type': 'error', 'message': '현재 텔레그램 매크로가 실행 중입니다. 텔레그램에서 /stop 후 다시 시도해주세요.'})}\n\n"
+        return Response(error_stream(), mimetype='text/event-stream')
+
     global STOP_MACRO
     STOP_MACRO = False
 

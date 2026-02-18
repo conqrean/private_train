@@ -496,6 +496,14 @@ class TelegramService:
         Usage: /reserve 출발역 도착역 날짜 시간
         Example: /reserve 수서 부산 2026-03-01 06:00
         """
+        # Prevent concurrent macro execution
+        if self._macro_running:
+            self.send_message(
+                "⚠️ 현재 매크로가 실행 중입니다.\n"
+                "먼저 /stop 으로 중단 후 다시 시도해주세요."
+            )
+            return
+
         if len(args) < 4:
             self.send_message(
                 "📝 <b>/reserve 사용법</b>\n"
@@ -637,6 +645,16 @@ class TelegramService:
             return
 
         selected_trains = [trains[i] for i in selected_indices]
+
+        # Prevent concurrent macro execution (race condition between search and selection)
+        if self._macro_running:
+            self.send_message(
+                "⚠️ 현재 매크로가 실행 중입니다.\n"
+                "먼저 /stop 으로 중단 후 다시 시도해주세요."
+            )
+            self._pending_reserve = None
+            return
+
         train_names = ', '.join(
             f"{t['train_name']}({t['dep_time'][:2]}:{t['dep_time'][2:4]})"
             for t in selected_trains
