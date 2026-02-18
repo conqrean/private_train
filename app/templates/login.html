@@ -80,10 +80,13 @@
                            id="user_id"
                            name="user_id"
                            required
-                           placeholder="회원번호, 이메일, 또는 전화번호"
+                           placeholder="010-0000-0000 또는 이메일"
+                           inputmode="text"
+                           autocomplete="username"
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2
                                   {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}
                                   focus:border-transparent transition-colors">
+                    <p id="user_id_hint" class="mt-1 text-xs text-gray-400 hidden">전화번호: 010-0000-0000 형식</p>
                 </div>
 
                 <div>
@@ -120,4 +123,52 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const input = document.getElementById('user_id');
+    const hint  = document.getElementById('user_id_hint');
+
+    function isPhone(val) {
+        // Starts with 010/011/016/017/018/019 or pure digits ≥ 9 chars
+        return /^0[1-9][\d\-]*$/.test(val);
+    }
+
+    function formatPhone(val) {
+        // Strip all non-digits
+        const digits = val.replace(/\D/g, '');
+        if (digits.length <= 3)  return digits;
+        if (digits.length <= 7)  return digits.slice(0, 3) + '-' + digits.slice(3);
+        if (digits.length <= 11) return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+        return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7, 11);
+    }
+
+    input.addEventListener('input', function (e) {
+        const raw = input.value;
+
+        // Only auto-format if it looks like a phone number
+        if (isPhone(raw)) {
+            const cursor = input.selectionStart;
+            const prevLen = raw.length;
+            const formatted = formatPhone(raw);
+            input.value = formatted;
+            // Keep cursor position roughly correct
+            const diff = formatted.length - prevLen;
+            input.setSelectionRange(cursor + diff, cursor + diff);
+            hint.classList.remove('hidden');
+        } else {
+            hint.classList.add('hidden');
+        }
+    });
+
+    // On form submit: strip dashes so server receives plain digits
+    input.closest('form').addEventListener('submit', function () {
+        if (isPhone(input.value)) {
+            input.value = input.value.replace(/\D/g, '');
+        }
+    });
+})();
+</script>
 {% endblock %}
