@@ -211,14 +211,14 @@ def _setup_telegram_callbacks():
                             except Exception:
                                 pass
 
-                        # Status update every 50 attempts
-                        if attempt % 50 == 0:
+                        # Status update every 1000 attempts
+                        if attempt % 1000 == 0:
                             tg.send_message(f"🔄 시도 #{attempt} 진행 중...")
 
                     except Exception as e:
                         err_msg = f'[{timestamp}] 오류 발생 (시도 #{attempt}): {str(e)[:100]}'
                         tg.push_log('error', err_msg)
-                        if attempt % 10 == 0:
+                        if attempt % 1000 == 0:
                             tg.send_message(f"⚠️ {err_msg}")
                         time.sleep(1)
 
