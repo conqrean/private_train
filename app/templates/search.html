@@ -959,14 +959,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function checkMacroStatus() {
-        // Don't check if web SSE is active or already streaming
-        if (eventSource || macroStreamSource) return;
-
         fetch('/api/telegram/status')
             .then(r => r.json())
             .then(data => {
                 if (data.macro_running) {
-                    connectMacroStream();
+                    // Auto-connect to stream if not already connected
+                    if (!eventSource && !macroStreamSource) {
+                        connectMacroStream();
+                    }
+                } else {
+                    // Macro is NOT running — ensure UI reflects idle state
+                    if (macroStreamSource) {
+                        macroStreamSource.close();
+                        macroStreamSource = null;
+                        const badge = document.getElementById('logSourceBadge');
+                        if (badge) badge.classList.add('hidden');
+                    }
+                    // Fix button state if stop button is still showing without active web SSE
+                    if (stopBtn && !stopBtn.classList.contains('hidden') && !eventSource) {
+                        if (startBtn) startBtn.classList.remove('hidden');
+                        stopBtn.classList.add('hidden');
+                    }
                 }
             })
             .catch(() => {});
