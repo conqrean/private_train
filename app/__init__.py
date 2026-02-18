@@ -13,9 +13,10 @@ def create_app(config_name: str = 'default') -> Flask:
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", "train_reservation_secret_key_2024")
 
     # Register blueprints
-    from app.routes import auth, search, reservation
+    from app.routes import auth, search, reservation, telegram
     app.register_blueprint(auth.bp)
     app.register_blueprint(search.bp)
     app.register_blueprint(reservation.bp)
+    app.register_blueprint(telegram.bp)
 
     return app

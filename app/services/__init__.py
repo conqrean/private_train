@@ -4,6 +4,7 @@ from app.services.base_service import TrainProvider, TrainInfo, BaseTrainService
 from app.services.srt_service import SRTService
 from app.services.korail_service import KorailService
 from app.services.service_manager import ServiceManager
+from app.services.telegram_service import TelegramService
 
 __all__ = [
     'TrainProvider',
@@ -13,4 +14,5 @@ __all__ = [
     'SRTService',
     'KorailService',
     'ServiceManager',
+    'TelegramService',
 ]

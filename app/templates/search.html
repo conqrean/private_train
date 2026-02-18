@@ -331,10 +331,130 @@
     </div>
 
     {% endif %}
+
+    <!-- Telegram Settings Card (always visible) -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <!-- Header / Toggle -->
+        <div class="p-4 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+             onclick="document.getElementById('tgBody').classList.toggle('hidden'); document.getElementById('tgChevron').classList.toggle('rotate-180');">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.97 1.25-5.55 3.67-.53.36-1.01.54-1.43.53-.47-.01-1.38-.27-2.05-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.74 3.99-1.74 6.65-2.89 7.99-3.45 3.8-1.58 4.59-1.86 5.1-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">텔레그램 알림</h3>
+                    <p class="text-xs text-gray-500">예약 성공 알림 및 원격 제어 (/stop, /status, /reserve)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="tgStatus" class="flex items-center gap-2">
+                    <span id="tgStatusDot" class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
+                    <span id="tgStatusText" class="text-sm text-gray-500">미연결</span>
+                </div>
+                <svg id="tgChevron" class="w-5 h-5 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Body (collapsible) -->
+        <div id="tgBody" class="hidden border-t">
+            <div class="p-6 space-y-4">
+                <!-- Token + Chat ID inputs -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">Bot Token</label>
+                        <div class="relative">
+                            <input type="password" id="tgBotToken" placeholder="123456:ABC-DEF..."
+                                   class="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all text-sm font-mono">
+                            <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <svg id="tgEyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">Chat ID <span class="text-gray-400 normal-case font-normal">(봇에 /start 보내면 자동 등록)</span></label>
+                        <input type="text" id="tgChatId" placeholder="123456789"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all text-sm font-mono">
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="button" id="tgConnectBtn" onclick="connectTelegram()"
+                            class="px-5 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        연결
+                    </button>
+                    <button type="button" id="tgTestBtn" onclick="testTelegram()" class="hidden px-5 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        테스트 전송
+                    </button>
+                    <button type="button" id="tgDisconnectBtn" onclick="disconnectTelegram()" class="hidden px-5 py-2 rounded-lg bg-red-100 text-red-600 text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                        연결 해제
+                    </button>
+                    <label class="inline-flex items-center gap-2 ml-auto">
+                        <input type="checkbox" id="tgAutoConnect" onchange="saveAutoConnect()" class="rounded text-blue-500 focus:ring-blue-400">
+                        <span class="text-sm text-gray-600">자동 연결</span>
+                    </label>
+                    <span id="tgMessage" class="text-sm text-gray-500 basis-full mt-1"></span>
+                </div>
+
+                <!-- Help Section -->
+                <details class="mt-2">
+                    <summary class="text-sm text-blue-500 hover:text-blue-700 cursor-pointer select-none">
+                        📖 설정 방법 및 명령어 안내
+                    </summary>
+                    <div class="mt-3 p-4 bg-blue-50 rounded-lg text-sm text-gray-700 space-y-3">
+                        <div>
+                            <p class="font-semibold text-blue-800 mb-2">📋 설정 방법</p>
+                            <ol class="list-decimal list-inside space-y-1 text-gray-600">
+                                <li>텔레그램에서 <b>@BotFather</b>를 검색하고 <code class="bg-blue-100 px-1 rounded">/newbot</code> 명령어로 봇 생성</li>
+                                <li>발급받은 <b>Bot Token</b>을 위 입력란에 붙여넣기</li>
+                                <li>"연결" 버튼 클릭</li>
+                                <li>생성한 봇의 대화창에서 <code class="bg-blue-100 px-1 rounded">/start</code> 전송 → Chat ID 자동 등록</li>
+                                <li>"자동 연결" 체크 시 다음 접속부터 자동으로 연결됩니다</li>
+                            </ol>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-blue-800 mb-2">🎮 봇 명령어</p>
+                            <div class="bg-white rounded-lg overflow-hidden border border-blue-200">
+                                <table class="w-full text-sm">
+                                    <tbody class="divide-y divide-blue-100">
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/start</td><td class="px-3 py-2 text-gray-600">봇 연결 및 Chat ID 자동 등록</td></tr>
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/reserve</td><td class="px-3 py-2 text-gray-600">텔레그램에서 열차 검색 및 예약 시작<br><span class="text-xs text-gray-400">예: /reserve 수서 부산 2026-03-01 06:00</span></td></tr>
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/stop</td><td class="px-3 py-2 text-gray-600">실행 중인 매크로 원격 중단</td></tr>
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/restart</td><td class="px-3 py-2 text-gray-600">최신 데이터로 매크로 재시작</td></tr>
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/status</td><td class="px-3 py-2 text-gray-600">현재 매크로 상태 상세 확인</td></tr>
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/trains</td><td class="px-3 py-2 text-gray-600">마지막 검색된 열차 목록 보기</td></tr>
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/chatid</td><td class="px-3 py-2 text-gray-600">현재 Chat ID 확인</td></tr>
+                                        <tr><td class="px-3 py-2 font-mono text-blue-700 font-semibold">/help</td><td class="px-3 py-2 text-gray-600">명령어 목록 표시</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-blue-800 mb-2">💡 /reserve 사용 예시</p>
+                            <div class="bg-gray-800 text-green-400 rounded-lg p-3 font-mono text-xs space-y-1">
+                                <p>/reserve 수서 부산 2026-03-01 06:00</p>
+                                <p class="text-gray-500">→ 열차 목록이 표시되면 번호를 선택</p>
+                                <p class="text-gray-500">→ 예: "1,3,5" 입력 시 해당 열차 예약 시작</p>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Log Drawer -->
-{% if trains %}
+<!-- Log Drawer (always rendered for both web and Telegram macro logs) -->
 <div id="logDrawer" data-testid="log-panel"
      class="fixed bottom-0 left-0 right-0 z-40 transform transition-transform duration-300 ease-in-out"
      style="transform: translateY(calc(100% - 48px));">
@@ -345,6 +465,7 @@
         <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse" id="logStatusDot" data-testid="log-status-indicator"></span>
             <span class="text-sm font-medium">예약 로그</span>
+            <span id="logSourceBadge" class="hidden text-xs px-1.5 py-0.5 rounded bg-blue-500 text-white">TG</span>
             <span id="selectedCount" class="text-xs text-gray-400 ml-2"></span>
         </div>
         <svg id="drawerIcon" class="w-5 h-5 transform rotate-180 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -360,7 +481,6 @@
 
 <!-- Minimal spacer for drawer handle -->
 <div class="h-14"></div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -649,6 +769,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const successSound = document.getElementById('successSound');
 
     let eventSource = null;
+    let macroStreamSource = null;
+    let macroCheckInterval = null;
     let soundRepeatId = null;
 
     function log(message, type = 'info') {
@@ -727,6 +849,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         log(data.message, 'success');
                         playSound();
                         eventSource.close();
+                        eventSource = null;
                         startBtn.classList.remove('hidden');
                         stopBtn.classList.add('hidden');
                         break;
@@ -736,6 +859,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     case 'stopped':
                         log(data.message, 'warning');
                         eventSource.close();
+                        eventSource = null;
                         startBtn.classList.remove('hidden');
                         stopBtn.classList.add('hidden');
                         break;
@@ -745,6 +869,7 @@ document.addEventListener('DOMContentLoaded', function() {
             eventSource.onerror = function() {
                 log('연결이 끊어졌습니다.', 'error');
                 eventSource.close();
+                eventSource = null;
                 startBtn.classList.remove('hidden');
                 stopBtn.classList.add('hidden');
             };
@@ -757,6 +882,271 @@ document.addEventListener('DOMContentLoaded', function() {
             log('중단 요청을 보냈습니다...', 'warning');
         });
     }
+
+    // ─── Telegram Macro Stream Auto-Connect ─────────────────
+    function connectMacroStream() {
+        if (macroStreamSource) return;  // already connected
+        if (eventSource) return;  // web SSE is active, skip
+
+        const badge = document.getElementById('logSourceBadge');
+        const dot = document.getElementById('logStatusDot');
+
+        logContainer.innerHTML = '';
+        log('📡 텔레그램 매크로 스트림 연결...', 'info');
+
+        // Show TG badge
+        if (badge) badge.classList.remove('hidden');
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-blue-400 animate-pulse';
+
+        // Open log drawer
+        const drawer = document.getElementById('logDrawer');
+        if (drawer) drawer.style.transform = 'translateY(0px)';
+        const icon = document.getElementById('drawerIcon');
+        if (icon) icon.classList.remove('rotate-180');
+
+        // Show stop button if available
+        if (startBtn) startBtn.classList.add('hidden');
+        if (stopBtn) stopBtn.classList.remove('hidden');
+
+        macroStreamSource = new EventSource('/macro_stream');
+        macroStreamSource.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+
+            if (data.type === 'stream_end') {
+                macroStreamSource.close();
+                macroStreamSource = null;
+                if (badge) badge.classList.add('hidden');
+                if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse';
+                if (startBtn) startBtn.classList.remove('hidden');
+                if (stopBtn) stopBtn.classList.add('hidden');
+                return;
+            }
+
+            switch(data.type) {
+                case 'log':
+                    log(data.message);
+                    break;
+                case 'success':
+                    log(data.message, 'success');
+                    playSound();
+                    macroStreamSource.close();
+                    macroStreamSource = null;
+                    if (badge) badge.classList.add('hidden');
+                    if (startBtn) startBtn.classList.remove('hidden');
+                    if (stopBtn) stopBtn.classList.add('hidden');
+                    break;
+                case 'error':
+                    log(data.message, 'error');
+                    break;
+                case 'warning':
+                    log(data.message, 'warning');
+                    break;
+                case 'stopped':
+                    log(data.message, 'warning');
+                    macroStreamSource.close();
+                    macroStreamSource = null;
+                    if (badge) badge.classList.add('hidden');
+                    if (startBtn) startBtn.classList.remove('hidden');
+                    if (stopBtn) stopBtn.classList.add('hidden');
+                    break;
+            }
+        };
+        macroStreamSource.onerror = function() {
+            macroStreamSource.close();
+            macroStreamSource = null;
+            if (badge) badge.classList.add('hidden');
+        };
+    }
+
+    function checkMacroStatus() {
+        // Don't check if web SSE is active or already streaming
+        if (eventSource || macroStreamSource) return;
+
+        fetch('/api/telegram/status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.macro_running) {
+                    connectMacroStream();
+                }
+            })
+            .catch(() => {});
+    }
+
+    // Poll for Telegram macro every 3 seconds
+    macroCheckInterval = setInterval(checkMacroStatus, 3000);
+    // Check immediately on load
+    checkMacroStatus();
+
+    // Load telegram status on page load
+    loadTelegramSettings();
+    checkTelegramStatus();
 });
+
+// ─── Telegram Functions ─────────────────────────────────────
+
+// localStorage keys
+const TG_STORAGE_KEY = 'tg_settings';
+
+function saveTelegramSettings() {
+    const token = document.getElementById('tgBotToken')?.value.trim() || '';
+    const chatId = document.getElementById('tgChatId')?.value.trim() || '';
+    const autoConnect = document.getElementById('tgAutoConnect')?.checked || false;
+    localStorage.setItem(TG_STORAGE_KEY, JSON.stringify({token, chatId, autoConnect}));
+}
+
+function loadTelegramSettings() {
+    try {
+        const raw = localStorage.getItem(TG_STORAGE_KEY);
+        if (!raw) return;
+        const {token, chatId, autoConnect} = JSON.parse(raw);
+        const tokenInput = document.getElementById('tgBotToken');
+        const chatIdInput = document.getElementById('tgChatId');
+        const autoCheckbox = document.getElementById('tgAutoConnect');
+        if (tokenInput && token) tokenInput.value = token;
+        if (chatIdInput && chatId) chatIdInput.value = chatId;
+        if (autoCheckbox) autoCheckbox.checked = !!autoConnect;
+
+        // Auto-connect if enabled
+        if (autoConnect && token) {
+            setTimeout(() => connectTelegram(true), 500);
+        }
+    } catch(e) {}
+}
+
+function saveAutoConnect() {
+    saveTelegramSettings();
+}
+
+function toggleTokenVisibility() {
+    const input = document.getElementById('tgBotToken');
+    if (!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+async function checkTelegramStatus() {
+    try {
+        const resp = await fetch('/api/telegram/status');
+        const data = await resp.json();
+        updateTelegramUI(data);
+    } catch(e) {
+        // Telegram API not available
+    }
+}
+
+function updateTelegramUI(status) {
+    const dot = document.getElementById('tgStatusDot');
+    const text = document.getElementById('tgStatusText');
+    const testBtn = document.getElementById('tgTestBtn');
+    const disconnectBtn = document.getElementById('tgDisconnectBtn');
+    const connectBtn = document.getElementById('tgConnectBtn');
+
+    if (!dot) return;
+
+    if (status.connected) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse';
+        text.textContent = status.chat_id ? `연결됨 (${status.chat_id})` : '연결됨 (Chat ID 대기 중)';
+        text.className = 'text-sm text-green-600 font-medium';
+        testBtn?.classList.remove('hidden');
+        disconnectBtn?.classList.remove('hidden');
+        connectBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> 재연결';
+        // Update chatId input if auto-detected
+        if (status.chat_id) {
+            const chatIdInput = document.getElementById('tgChatId');
+            if (chatIdInput && !chatIdInput.value) {
+                chatIdInput.value = status.chat_id;
+                saveTelegramSettings();
+            }
+        }
+    } else if (status.configured) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-yellow-400';
+        text.textContent = '설정됨 (폴링 중단)';
+        text.className = 'text-sm text-yellow-600';
+        testBtn?.classList.remove('hidden');
+        disconnectBtn?.classList.remove('hidden');
+    } else {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-300';
+        text.textContent = '미연결';
+        text.className = 'text-sm text-gray-500';
+        testBtn?.classList.add('hidden');
+        disconnectBtn?.classList.add('hidden');
+        connectBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> 연결';
+    }
+}
+
+async function connectTelegram(silent = false) {
+    const tokenInput = document.getElementById('tgBotToken');
+    const chatIdInput = document.getElementById('tgChatId');
+    const msgEl = document.getElementById('tgMessage');
+    const botToken = tokenInput?.value.trim();
+    const chatId = chatIdInput?.value.trim();
+
+    if (!botToken) {
+        if (!silent) {
+            msgEl.textContent = '봇 토큰을 입력해주세요.';
+            msgEl.className = 'text-sm text-red-500 basis-full mt-1';
+        }
+        return;
+    }
+
+    if (!silent) {
+        msgEl.textContent = '연결 중...';
+        msgEl.className = 'text-sm text-blue-500 basis-full mt-1';
+    }
+
+    try {
+        const resp = await fetch('/api/telegram/configure', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({bot_token: botToken, chat_id: chatId})
+        });
+        const data = await resp.json();
+
+        if (!silent) {
+            msgEl.textContent = data.message;
+            msgEl.className = data.success ? 'text-sm text-green-600 basis-full mt-1' : 'text-sm text-red-500 basis-full mt-1';
+        }
+
+        if (data.success) {
+            saveTelegramSettings();
+            checkTelegramStatus();
+        }
+    } catch(e) {
+        if (!silent) {
+            msgEl.textContent = '연결 오류가 발생했습니다.';
+            msgEl.className = 'text-sm text-red-500 basis-full mt-1';
+        }
+    }
+}
+
+async function testTelegram() {
+    const msgEl = document.getElementById('tgMessage');
+    msgEl.textContent = '테스트 전송 중...';
+    msgEl.className = 'text-sm text-blue-500 basis-full mt-1';
+
+    try {
+        const resp = await fetch('/api/telegram/test', {method: 'POST'});
+        const data = await resp.json();
+        msgEl.textContent = data.message;
+        msgEl.className = data.success ? 'text-sm text-green-600 basis-full mt-1' : 'text-sm text-red-500 basis-full mt-1';
+    } catch(e) {
+        msgEl.textContent = '전송 오류가 발생했습니다.';
+        msgEl.className = 'text-sm text-red-500 basis-full mt-1';
+    }
+}
+
+async function disconnectTelegram() {
+    const msgEl = document.getElementById('tgMessage');
+    try {
+        const resp = await fetch('/api/telegram/disconnect', {method: 'POST'});
+        const data = await resp.json();
+        msgEl.textContent = data.message;
+        msgEl.className = 'text-sm text-gray-600 basis-full mt-1';
+        localStorage.removeItem(TG_STORAGE_KEY);
+        checkTelegramStatus();
+    } catch(e) {
+        msgEl.textContent = '연결 해제 오류';
+        msgEl.className = 'text-sm text-red-500 basis-full mt-1';
+    }
+}
 </script>
 {% endblock %}
