@@ -408,7 +408,7 @@ def start_reservation():
                                 and x.dep_time==tr.dep_time), None)
                 except Exception as e:
                     yield f"data: [{tr.dep_time}] {tr.train_name} 검색 오류: {e}\n\n"
-                    time.sleep(1)
+                    time.sleep(2)
                     continue
 
                 # 2) 예약 가능 여부 & 시도
@@ -423,7 +423,7 @@ def start_reservation():
                         msg = str(e)
                         if "잔여석없음" in msg:
                             yield f"data: [{tr.dep_time}] {tr.train_name} 매진({cnt}회)—잔여석없음, 1초 후 재시도\n\n"
-                            time.sleep(1)
+                            time.sleep(2)
                             continue
                         else:
                             yield f"data: [{tr.dep_time}] {tr.train_name} 예약 오류: {msg}\n\n"
@@ -434,7 +434,7 @@ def start_reservation():
                 else:
                     yield f"data: [{tr.dep_time}] {tr.train_name} 매진 ({cnt}회)\n\n"
 
-                time.sleep(1)
+                time.sleep(2)
 
             if all_done:
                 break
