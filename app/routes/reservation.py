@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Reservation routes with SSE support and multi-provider session."""
 import json
+import random
 import threading
 import time
 from datetime import datetime
@@ -226,7 +227,7 @@ def _setup_telegram_callbacks():
                             tg.send_message(f"⚠️ {err_msg}")
                         time.sleep(1)
 
-                    time.sleep(0.5)
+                    time.sleep(random.uniform(1, 1.5))
 
                 tg.set_macro_state(False)
                 tg.send_macro_stopped()
@@ -546,7 +547,7 @@ def start_reservation():
                     time.sleep(1)
 
             # Wait before next attempt
-            time.sleep(0.5)
+            time.sleep(random.uniform(1, 1.5))
 
         tg.set_macro_state(False)
         tg.send_macro_stopped()
