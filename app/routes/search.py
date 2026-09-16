@@ -11,7 +11,7 @@ from app.services import ServiceManager
 from app.utils.session_helper import (
     get_current_provider, is_logged_in, get_logged_in_providers,
     get_search_state, set_search_trains,
-    get_card_settings, set_card_settings, clear_card_settings
+    list_cards, save_card, delete_card, set_default_card
 )
 
 bp = Blueprint('search', __name__)
@@ -113,33 +113,40 @@ def search_more():
         return jsonify({'error': str(e)}), 500
 
 
-@bp.route('/api/card/status', methods=['GET'])
+def _mask_card_number(number: str) -> str:
+    return ('*' * max(len(number) - 4, 0)) + number[-4:] if len(number) > 4 else number
+
+
+@bp.route('/api/cards', methods=['GET'])
 @login_required
-def card_status():
-    """Return whether card auto-payment is configured for the current provider."""
+def cards_list():
+    """List all saved cards (masked) for the current provider."""
     provider = get_current_provider()
-    card = get_card_settings(provider)
-    if not card:
-        return jsonify({'configured': False})
-    number = card.get('card_number', '')
-    masked = ('*' * max(len(number) - 4, 0)) + number[-4:] if len(number) > 4 else number
+    cards = list_cards(provider)
     return jsonify({
-        'configured': True,
-        'auto_pay': card.get('auto_pay', True),
-        'masked_number': masked,
-        'card_expire': card.get('card_expire', ''),
-        'installment': card.get('installment', 0),
-        'card_type': card.get('card_type', 'J'),
+        'cards': [
+            {
+                'alias': c['alias'],
+                'masked_number': _mask_card_number(c.get('card_number', '')),
+                'card_expire': c.get('card_expire', ''),
+                'installment': c.get('installment', 0),
+                'card_type': c.get('card_type', 'J'),
+                'auto_pay': c.get('auto_pay', True),
+                'is_default': c.get('is_default', False),
+            }
+            for c in cards
+        ]
     })
 
 
 @bp.route('/api/card/save', methods=['POST'])
 @login_required
 def card_save():
-    """Save card auto-payment settings for the current provider."""
+    """Add or update a saved card (identified by alias) for the current provider."""
     provider = get_current_provider()
     data = request.get_json(silent=True) or request.form
 
+    alias = (data.get('alias') or '').strip()
     card_number = (data.get('card_number') or '').replace('-', '').strip()
     card_password = (data.get('card_password') or '').strip()
     validation_number = (data.get('validation_number') or '').strip()
@@ -151,6 +158,9 @@ def card_save():
         installment = int(data.get('installment', 0) or 0)
     except (TypeError, ValueError):
         installment = 0
+
+    if not alias:
+        return jsonify({'success': False, 'message': '카드 별칭을 입력해주세요.'}), 400
 
     if not all([card_number, card_password, validation_number, card_expire]):
         return jsonify({'success': False, 'message': '카드 정보를 모두 입력해주세요.'}), 400
@@ -171,20 +181,36 @@ def card_save():
             'message': f'카드 유효기간이 지났습니다 ({expire_month:02d}/{expire_year % 100:02d}).'
         }), 400
 
-    set_card_settings(
-        provider, card_number, card_password, validation_number,
+    save_card(
+        provider, alias, card_number, card_password, validation_number,
         card_expire, installment, card_type, auto_pay
     )
-    return jsonify({'success': True, 'message': '카드 정보가 저장되었습니다.'})
+    return jsonify({'success': True, 'message': f'카드 "{alias}"가 저장되었습니다.'})
 
 
-@bp.route('/api/card/clear', methods=['POST'])
+@bp.route('/api/card/delete', methods=['POST'])
 @login_required
-def card_clear():
-    """Clear card auto-payment settings for the current provider."""
+def card_delete():
+    """Delete one saved card (by alias) for the current provider."""
     provider = get_current_provider()
-    clear_card_settings(provider)
-    return jsonify({'success': True, 'message': '카드 정보가 삭제되었습니다.'})
+    data = request.get_json(silent=True) or request.form
+    alias = (data.get('alias') or '').strip()
+    if not alias:
+        return jsonify({'success': False, 'message': '삭제할 카드를 지정해주세요.'}), 400
+    delete_card(provider, alias)
+    return jsonify({'success': True, 'message': f'카드 "{alias}"가 삭제되었습니다.'})
+
+
+@bp.route('/api/card/set_default', methods=['POST'])
+@login_required
+def card_set_default():
+    """Mark a saved card as the default used for auto-payment."""
+    provider = get_current_provider()
+    data = request.get_json(silent=True) or request.form
+    alias = (data.get('alias') or '').strip()
+    if not set_default_card(provider, alias):
+        return jsonify({'success': False, 'message': '해당 카드를 찾을 수 없습니다.'}), 400
+    return jsonify({'success': True, 'message': f'"{alias}"를 기본 카드로 설정했습니다.'})
 
 
 @bp.route('/', methods=['GET', 'POST'])

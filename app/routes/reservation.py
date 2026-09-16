@@ -42,6 +42,10 @@ STOP_MACRO = False
 MAX_RECOVERY_ATTEMPTS = 5
 
 
+def _mask_card_number(number: str) -> str:
+    return ("*" * max(len(number) - 4, 0)) + number[-4:] if len(number) > 4 else number
+
+
 def _setup_telegram_callbacks():
     """Wire up telegram bot commands to macro control."""
     tg = TelegramService.get_instance()
@@ -449,14 +453,16 @@ def run_reservation_loop(
                         # remaining seat(s) - leaving it unpaid risks hitting the
                         # duplicate-unpaid-reservation guard on the next attempt.
                         if card and card.get("auto_pay", True):
-                            tg.push_log("log", "카드 자동결제 시도 중...")
+                            card_label = card.get("alias") or "카드"
+                            masked = _mask_card_number(card.get("card_number", ""))
+                            tg.push_log("log", f"카드 자동결제 시도 중... ({card_label} {masked})")
                             pay_success, pay_message = attempt_payment(service, card, result)
                             if pay_success:
-                                pay_msg = f"결제 완료! {train_name} ({dep_time})"
+                                pay_msg = f"결제 완료! {train_name} ({dep_time}) · {card_label}({masked})"
                                 tg.push_log("success", pay_msg)
                                 tg.send_message(f"💳 {pay_msg}")
                             else:
-                                pay_msg = f"결제 실패: {pay_message}"
+                                pay_msg = f"결제 실패: {pay_message} · {card_label}({masked})"
                                 tg.push_log("error", pay_msg)
                                 tg.send_message(f"⚠️ {pay_msg}")
 

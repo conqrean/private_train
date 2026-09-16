@@ -143,14 +143,33 @@ def set_credentials(provider: str, user_id: str, password: str) -> None:
     session.modified = True
 
 
-def get_card_settings(provider: str) -> Optional[Dict[str, Any]]:
-    """Get stored card auto-payment settings for a provider."""
+def list_cards(provider: str) -> List[Dict[str, Any]]:
+    """List all saved cards for a provider, each tagged with its alias and default status."""
     _init_session_structure()
-    return session['cards'].get(provider)
+    entry = session['cards'].get(provider) or {}
+    items = entry.get('items', {})
+    default_alias = entry.get('default')
+    return [
+        {**data, 'alias': alias, 'is_default': alias == default_alias}
+        for alias, data in items.items()
+    ]
 
 
-def set_card_settings(
+def get_card_settings(provider: str, alias: str = None) -> Optional[Dict[str, Any]]:
+    """Get one saved card's settings - a specific alias, or the default card if alias is omitted."""
+    _init_session_structure()
+    entry = session['cards'].get(provider) or {}
+    items = entry.get('items', {})
+    if alias is None:
+        alias = entry.get('default')
+    if not alias or alias not in items:
+        return None
+    return {**items[alias], 'alias': alias}
+
+
+def save_card(
     provider: str,
+    alias: str,
     card_number: str,
     card_password: str,
     validation_number: str,
@@ -159,9 +178,13 @@ def set_card_settings(
     card_type: str = 'J',
     auto_pay: bool = True,
 ) -> None:
-    """Store card auto-payment settings for a provider."""
+    """Add or update a saved card by alias. The first card saved becomes the default."""
     _init_session_structure()
-    session['cards'][provider] = {
+    entry = session['cards'].get(provider)
+    if not isinstance(entry, dict) or 'items' not in entry:
+        # Old single-card session shape (or nothing yet) - reset to the new shape.
+        entry = {'items': {}, 'default': None}
+    entry['items'][alias] = {
         'card_number': card_number,
         'card_password': card_password,
         'validation_number': validation_number,
@@ -170,11 +193,38 @@ def set_card_settings(
         'card_type': card_type,
         'auto_pay': auto_pay,
     }
+    if not entry.get('default'):
+        entry['default'] = alias
+    session['cards'][provider] = entry
+    session.modified = True
+
+
+def set_default_card(provider: str, alias: str) -> bool:
+    """Mark a saved card as the default used for auto-payment. Returns False if alias is unknown."""
+    _init_session_structure()
+    entry = session['cards'].get(provider)
+    if not entry or alias not in entry.get('items', {}):
+        return False
+    entry['default'] = alias
+    session.modified = True
+    return True
+
+
+def delete_card(provider: str, alias: str) -> None:
+    """Remove one saved card by alias. Promotes another remaining card to default if needed."""
+    _init_session_structure()
+    entry = session['cards'].get(provider)
+    if not entry:
+        return
+    entry.get('items', {}).pop(alias, None)
+    if entry.get('default') == alias:
+        remaining = list(entry.get('items', {}).keys())
+        entry['default'] = remaining[0] if remaining else None
     session.modified = True
 
 
 def clear_card_settings(provider: str) -> None:
-    """Remove stored card settings for a provider."""
+    """Remove all saved cards for a provider."""
     _init_session_structure()
     if provider in session['cards']:
         del session['cards'][provider]

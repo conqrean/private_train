@@ -544,64 +544,80 @@
         <!-- Body (collapsible) -->
         <div id="cardBody" class="hidden border-t">
             <div class="p-6 space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">카드 번호</label>
-                        <input type="text" id="cardNumber" placeholder="1234567890123456" inputmode="numeric" autocomplete="off"
-                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">유효기간 (MM/YY)</label>
-                        <input type="text" id="cardExpire" placeholder="09/30" maxlength="5" inputmode="numeric" autocomplete="off"
-                               oninput="formatCardExpireInput(this)"
-                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">비밀번호 앞 2자리</label>
-                        <input type="password" id="cardPassword" placeholder="12" maxlength="2" inputmode="numeric" autocomplete="off"
-                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">생년월일(YYMMDD) / 사업자번호</label>
-                        <input type="text" id="cardValidationNumber" placeholder="981204" inputmode="numeric" autocomplete="off"
-                               class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">카드 타입</label>
-                        <select id="cardType" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm">
-                            <option value="J">개인</option>
-                            <option value="S">법인</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">할부</label>
-                        <select id="cardInstallment" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm">
-                            <option value="0">일시불</option>
-                            {% for m in [2,3,4,5,6,7,8,9,10,11,12,24] %}
-                            <option value="{{ m }}">{{ m }}개월</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
+                <!-- Saved card list -->
+                <div id="cardList" class="space-y-2"></div>
+                <p id="cardEmptyMessage" class="text-sm text-gray-400 hidden">등록된 카드가 없습니다. 아래에서 카드를 추가하면 자동으로 기본 카드로 지정됩니다.</p>
 
-                <div class="flex flex-wrap items-center gap-3">
-                    <label class="inline-flex items-center gap-2">
-                        <input type="checkbox" id="cardAutoPay" checked class="rounded text-green-500 focus:ring-green-400">
-                        <span class="text-sm text-gray-600">예매 성공 시 자동으로 결제</span>
-                    </label>
-                    <button type="button" id="cardSaveBtn" onclick="saveCardSettings()"
-                            class="px-5 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
-                        저장
+                <!-- Add new card (toggle) -->
+                <div class="border-t pt-4">
+                    <button type="button" id="cardAddToggleBtn" onclick="toggleCardAddForm()"
+                            class="text-sm font-medium text-green-600 hover:text-green-700">
+                        + 새 카드 추가
                     </button>
-                    <button type="button" id="cardClearBtn" onclick="clearCardSettings()"
-                            class="px-5 py-2 rounded-lg bg-red-100 text-red-600 text-sm font-medium hover:bg-red-200 transition-colors">
-                        삭제
-                    </button>
-                    <span id="cardMessage" class="text-sm text-gray-500 basis-full mt-1"></span>
+
+                    <div id="cardAddForm" class="hidden mt-4 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">카드 별칭</label>
+                            <input type="text" id="cardAlias" placeholder="예: 엄마카드, 아빠카드" autocomplete="off"
+                                   class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">카드 번호</label>
+                                <input type="text" id="cardNumber" placeholder="1234567890123456" inputmode="numeric" autocomplete="off"
+                                       class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">유효기간 (MM/YY)</label>
+                                <input type="text" id="cardExpire" placeholder="09/30" maxlength="5" inputmode="numeric" autocomplete="off"
+                                       oninput="formatCardExpireInput(this)"
+                                       class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">비밀번호 앞 2자리</label>
+                                <input type="password" id="cardPassword" placeholder="12" maxlength="2" inputmode="numeric" autocomplete="off"
+                                       class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">생년월일(YYMMDD) / 사업자번호</label>
+                                <input type="text" id="cardValidationNumber" placeholder="981204" inputmode="numeric" autocomplete="off"
+                                       class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">카드 타입</label>
+                                <select id="cardType" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm">
+                                    <option value="J">개인</option>
+                                    <option value="S">법인</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">할부</label>
+                                <select id="cardInstallment" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all text-sm">
+                                    <option value="0">일시불</option>
+                                    {% for m in [2,3,4,5,6,7,8,9,10,11,12,24] %}
+                                    <option value="{{ m }}">{{ m }}개월</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox" id="cardAutoPay" checked class="rounded text-green-500 focus:ring-green-400">
+                                <span class="text-sm text-gray-600">예매 성공 시 자동으로 결제</span>
+                            </label>
+                            <button type="button" id="cardSaveBtn" onclick="saveCardSettings()"
+                                    class="px-5 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
+                                저장
+                            </button>
+                            <span id="cardMessage" class="text-sm text-gray-500 basis-full mt-1"></span>
+                        </div>
+                    </div>
                 </div>
 
                 <p class="text-xs text-gray-400">
                     카드 정보는 브라우저가 아니라 서버에 AES-256-GCM으로 암호화되어 저장되고, 로그아웃 시 삭제됩니다. 쿠키에는 세션 식별자만 담깁니다. 30일간 유지되니 공용 기기에서는 사용 후 로그아웃해주세요.
+                    예약 매크로는 <strong>기본으로 지정된 카드</strong>를 자동으로 사용하며, 카드가 없으면 결제 없이 예약만 진행합니다.
                 </p>
             </div>
         </div>
@@ -1452,41 +1468,98 @@ function expireToDisplayFormat(yyMM) {
 
 async function loadCardStatus() {
     try {
-        const resp = await fetch('/api/card/status');
+        const resp = await fetch('/api/cards');
         const data = await resp.json();
-        updateCardUI(data);
+        renderCardList(data.cards || []);
     } catch (e) {
         // ignore - not logged in yet, etc.
     }
 }
 
-function updateCardUI(status) {
+function toggleCardAddForm() {
+    document.getElementById('cardAddForm')?.classList.toggle('hidden');
+}
+
+function renderCardList(cards) {
     const dot = document.getElementById('cardStatusDot');
     const text = document.getElementById('cardStatusText');
-    if (!dot) return;
+    const listEl = document.getElementById('cardList');
+    const emptyEl = document.getElementById('cardEmptyMessage');
+    if (!dot || !listEl) return;
 
-    if (status.configured) {
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-green-500';
-        text.textContent = `등록됨 (${status.masked_number})${status.auto_pay ? '' : ' · 자동결제 꺼짐'}`;
-        text.className = 'text-sm text-green-600 font-medium';
-
-        const expireInput = document.getElementById('cardExpire');
-        const typeSelect = document.getElementById('cardType');
-        const installmentSelect = document.getElementById('cardInstallment');
-        const autoPayCheckbox = document.getElementById('cardAutoPay');
-        if (expireInput && status.card_expire) expireInput.value = expireToDisplayFormat(status.card_expire);
-        if (typeSelect && status.card_type) typeSelect.value = status.card_type;
-        if (installmentSelect && status.installment !== undefined) installmentSelect.value = String(status.installment);
-        if (autoPayCheckbox) autoPayCheckbox.checked = !!status.auto_pay;
-    } else {
+    if (!cards.length) {
         dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-300';
         text.textContent = '미등록';
         text.className = 'text-sm text-gray-500';
+        listEl.innerHTML = '';
+        emptyEl?.classList.remove('hidden');
+        return;
     }
+
+    emptyEl?.classList.add('hidden');
+    const defaultCard = cards.find(c => c.is_default);
+    dot.className = 'w-2.5 h-2.5 rounded-full bg-green-500';
+    text.textContent = defaultCard
+        ? `기본: ${defaultCard.alias} (${defaultCard.masked_number})`
+        : `${cards.length}장 등록됨`;
+    text.className = 'text-sm text-green-600 font-medium';
+
+    listEl.innerHTML = cards.map(c => `
+        <div class="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${c.is_default ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-gray-800 truncate">${escapeHtml(c.alias)}</span>
+                    ${c.is_default ? '<span class="text-xs px-2 py-0.5 rounded-full bg-green-500 text-white flex-shrink-0">기본</span>' : ''}
+                    ${!c.auto_pay ? '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">자동결제 꺼짐</span>' : ''}
+                </div>
+                <div class="text-xs text-gray-500 font-mono mt-0.5">${c.masked_number} · ${expireToDisplayFormat(c.card_expire)}</div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                ${!c.is_default ? `<button type="button" onclick="setDefaultCardAlias('${escapeAttr(c.alias)}')" class="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-100">기본으로</button>` : ''}
+                <button type="button" onclick="deleteCardAlias('${escapeAttr(c.alias)}')" class="px-3 py-1.5 rounded-lg bg-red-100 text-red-600 text-xs font-medium hover:bg-red-200">삭제</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function escapeAttr(s) {
+    return String(s ?? '').replace(/[\\'"]/g, m => '\\' + m);
+}
+
+async function setDefaultCardAlias(alias) {
+    try {
+        await fetch('/api/card/set_default', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({alias})
+        });
+        loadCardStatus();
+    } catch (e) {}
+}
+
+async function deleteCardAlias(alias) {
+    try {
+        await fetch('/api/card/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({alias})
+        });
+        loadCardStatus();
+    } catch (e) {}
 }
 
 async function saveCardSettings() {
     const msgEl = document.getElementById('cardMessage');
+    const alias = document.getElementById('cardAlias')?.value.trim() || '';
+    if (!alias) {
+        msgEl.textContent = '카드 별칭을 입력해주세요.';
+        msgEl.className = 'text-sm text-red-500 basis-full mt-1';
+        return;
+    }
     const expireDisplay = document.getElementById('cardExpire')?.value.trim() || '';
     const expireApi = expireToApiFormat(expireDisplay);
     const month = parseInt(expireDisplay.replace(/\D/g, '').slice(0, 2), 10);
@@ -1510,6 +1583,7 @@ async function saveCardSettings() {
     }
 
     const payload = {
+        alias,
         card_number: document.getElementById('cardNumber')?.value.trim() || '',
         card_password: document.getElementById('cardPassword')?.value.trim() || '',
         validation_number: document.getElementById('cardValidationNumber')?.value.trim() || '',
@@ -1533,10 +1607,13 @@ async function saveCardSettings() {
         msgEl.className = data.success ? 'text-sm text-green-600 basis-full mt-1' : 'text-sm text-red-500 basis-full mt-1';
 
         if (data.success) {
-            // Clear sensitive fields from the DOM after saving
+            // Clear the form (including alias, sensitive fields) after saving
+            document.getElementById('cardAlias').value = '';
             document.getElementById('cardNumber').value = '';
             document.getElementById('cardPassword').value = '';
             document.getElementById('cardValidationNumber').value = '';
+            document.getElementById('cardExpire').value = '';
+            document.getElementById('cardAddForm')?.classList.add('hidden');
             loadCardStatus();
         }
     } catch (e) {
@@ -1545,18 +1622,5 @@ async function saveCardSettings() {
     }
 }
 
-async function clearCardSettings() {
-    const msgEl = document.getElementById('cardMessage');
-    try {
-        const resp = await fetch('/api/card/clear', {method: 'POST'});
-        const data = await resp.json();
-        msgEl.textContent = data.message;
-        msgEl.className = 'text-sm text-gray-600 basis-full mt-1';
-        loadCardStatus();
-    } catch (e) {
-        msgEl.textContent = '삭제 중 오류가 발생했습니다.';
-        msgEl.className = 'text-sm text-red-500 basis-full mt-1';
-    }
-}
 </script>
 {% endblock %}
