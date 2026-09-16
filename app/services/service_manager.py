@@ -57,11 +57,13 @@ class ServiceManager:
                         credentials["user_id"], credentials["password"]
                     )
                     if not success:
-                        # Login failed - clear stale session
-                        cls._clear_auth(provider)
+                        # Stale credentials - drop the login, but keep the
+                        # registered card: the user did not ask to remove it.
+                        clear_auth_state(provider, keep_card=True)
                 except Exception:
-                    # Login error - clear stale session
-                    cls._clear_auth(provider)
+                    # Transient failure (network down, provider outage) must
+                    # not silently wipe the card either.
+                    clear_auth_state(provider, keep_card=True)
 
         setattr(g, key, service)
         return service

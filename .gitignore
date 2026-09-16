@@ -38,6 +38,9 @@ app/static/css/output.css
 # Logs
 *.log
 
+# Background run state
+.run/
+
 # Environment
 .env
 .env.local

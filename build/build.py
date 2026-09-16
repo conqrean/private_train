@@ -27,7 +27,7 @@ BUILD_CONFIG = {
         'hidden_imports': [
             'flask', 'flask.sessions',
             'SRT', 'korail2',
-            'requests', 'pycryptodome',
+            'requests', 'Crypto', 'Crypto.Cipher.AES', 'Crypto.Random',
         ]
     },
     'srt': {
