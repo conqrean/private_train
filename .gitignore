@@ -37,6 +37,7 @@ app/static/css/output.css
 
 # Logs
 *.log
+logs/
 
 # Background run state
 .run/
