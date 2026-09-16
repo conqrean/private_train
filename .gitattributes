@@ -1,0 +1,20 @@
+# 개행 정책을 저장소에 고정한다.
+#
+# 원래 Windows 에서 개발돼 대부분의 파일이 CRLF 로 커밋돼 있었는데, 리눅스에서
+# 편집하면 LF 가 되면서 몇 줄만 고쳐도 diff 에 파일 전체가 뜨고 git blame 이
+# 통째로 덮어씌워졌다. 아래 규칙으로 저장소 안에서는 항상 LF 를 쓰고,
+# Windows 전용 스크립트만 예외로 CRLF 를 유지한다.
+
+* text=auto eol=lf
+
+# Windows 셸이 직접 읽는 파일은 CRLF 여야 한다
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 바이너리 (개행 변환 금지)
+*.exe binary
+*.mp3 binary
+*.png binary
+*.jpg binary
+*.ico binary
