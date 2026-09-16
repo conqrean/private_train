@@ -22,7 +22,7 @@ def get_service(provider: str):
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     """Handle login."""
-    provider = request.args.get("provider") or request.form.get("provider", "srt")
+    provider = request.args.get("provider") or request.form.get("provider", "korail")
     logged_in_providers = get_logged_in_providers()
 
     if request.method == "POST":
