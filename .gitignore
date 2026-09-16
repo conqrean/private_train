@@ -37,10 +37,14 @@ app/static/css/output.css
 
 # Logs
 *.log
+*.log.err
 logs/
 
 # Background run state
 .run/
+
+# Background run scripts
+*.pid
 
 # Environment
 .env
