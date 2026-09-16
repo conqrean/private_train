@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}열차 검색 - {{ 'SRT' if provider == 'srt' else 'KTX' }} 예약{% endblock %}
+{% block title %}열차 검색 - KTX 예약{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -22,7 +22,7 @@
                                    list="stationDatalist" autocomplete="off" placeholder="역 검색 (예: 서울)"
                                    value="{{ form_data.dep }}"
                                    class="w-full pl-4 pr-4 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800
-                                          {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                                          focus:ring-ktx-primary">
                         </div>
                     </div>
 
@@ -42,7 +42,7 @@
                                    list="stationDatalist" autocomplete="off" placeholder="역 검색 (예: 부산)"
                                    value="{{ form_data.arr }}"
                                    class="w-full pl-4 pr-4 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800
-                                          {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                                          focus:ring-ktx-primary">
                         </div>
                     </div>
 
@@ -61,7 +61,7 @@
                             <input type="text" name="date" id="dateInput" data-testid="date-picker" value="{{ form_data.date }}"
                                    placeholder="날짜 선택"
                                    class="w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800 cursor-pointer
-                                          {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                                          focus:ring-ktx-primary">
                             <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                             </div>
@@ -73,7 +73,7 @@
                         <div class="relative">
                             <select name="time" data-testid="time-picker"
                                     class="w-full pl-10 pr-10 py-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-semibold text-gray-800 appearance-none
-                                           {% if provider == 'srt' %}focus:ring-srt-primary{% else %}focus:ring-ktx-primary{% endif %}">
+                                           focus:ring-ktx-primary">
                                 {% for h in range(24) %}
                                 {% set hh = "%02d:00"|format(h) %}
                                 <option value="{{ hh }}" {% if form_data.time == hh %}selected{% endif %}>
@@ -95,7 +95,7 @@
                 <div class="col-span-1 lg:col-span-2 flex items-end">
                     <button type="submit" data-testid="search-submit"
                             class="w-full py-3.5 rounded-xl text-white font-bold shadow-md hover:shadow-lg transform active:scale-95 transition-all duration-200 flex items-center justify-center gap-2
-                                   {% if provider == 'srt' %}bg-srt-primary hover:bg-srt-secondary shadow-purple-200{% else %}bg-ktx-primary hover:bg-ktx-secondary shadow-red-200{% endif %}">
+                                   bg-ktx-primary hover:bg-ktx-secondary shadow-red-200">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         검색
                     </button>
@@ -104,7 +104,19 @@
         </form>
     </div>
 
-    <!-- Error Message -->
+    <style>
+    /* 긴급 모드일 때 선택 박스를 눈에 띄게 - JS 로만 붙는 클래스라
+       Tailwind CDN 의 클래스 생성에 의존하지 않고 직접 정의한다. */
+    .pace-select { border-color: #d1d5db; color: #374151; }
+    .pace-select.pace-rush {
+        border-color: #f59e0b;
+        background-color: #fffbeb;
+        color: #92400e;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    }
+</style>
+
+<!-- Error Message -->
     {% if error_message %}
     <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p class="text-sm text-red-600">{{ error_message }}</p>
@@ -307,12 +319,12 @@
                     <span class="text-sm text-gray-600">예약 성공 시:</span>
                     <label class="inline-flex items-center">
                         <input type="radio" name="sound_option" value="once" checked data-testid="sound-option-once"
-                               class="{% if provider == 'srt' %}text-srt-primary{% else %}text-ktx-primary{% endif %}">
+                               class="text-ktx-primary">
                         <span class="ml-2 text-sm text-gray-700">1회 알림</span>
                     </label>
                     <label class="inline-flex items-center">
                         <input type="radio" name="sound_option" value="repeat" data-testid="sound-option-repeat"
-                               class="{% if provider == 'srt' %}text-srt-primary{% else %}text-ktx-primary{% endif %}">
+                               class="text-ktx-primary">
                         <span class="ml-2 text-sm text-gray-700">10초 반복</span>
                     </label>
                     <button type="button" id="ackBtn" data-testid="ack-button" class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors">
@@ -321,10 +333,57 @@
                 </div>
 
                 <!-- Reserve Buttons -->
-                <div class="flex space-x-3">
+                <div class="flex items-center space-x-3">
+                    <!-- Pacing Mode -->
+                    <div class="relative flex items-center gap-1.5">
+                        <select id="paceMode" data-testid="pace-mode"
+                                class="pace-select px-3 py-2 border rounded-lg text-sm font-medium bg-white">
+                            <option value="safe" selected>기본 모드</option>
+                            <option value="rush">긴급 모드</option>
+                        </select>
+                        <button type="button" id="paceInfoBtn" data-testid="pace-info"
+                                aria-label="모드 설명 보기"
+                                class="w-5 h-5 flex items-center justify-center rounded-full border border-gray-300
+                                       text-gray-400 hover:text-gray-700 hover:border-gray-500 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"></path>
+                                <circle cx="12" cy="12" r="9"></circle>
+                            </svg>
+                        </button>
+
+                        <div id="paceInfoPopover"
+                             class="hidden absolute bottom-full right-0 mb-3 w-96 z-30 p-4 rounded-xl
+                                    bg-white border border-gray-200 shadow-xl text-left">
+                            <div class="mb-3">
+                                <p class="text-sm font-semibold text-gray-800">기본 모드</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">
+                                    사람이 새로고침하듯 간격을 불규칙하게 둡니다. 평균 약 5초이고, 가끔 몇 번
+                                    연달아 조회한 뒤 길게 쉬며, 심야에는 더 느려집니다.
+                                    <span class="text-gray-500">(분당 조회 약 10회)</span>
+                                </p>
+                                <p class="mt-1 text-xs text-gray-500">
+                                    → 며칠 전부터 취소표를 기다릴 때. 차단 위험이 가장 낮습니다.
+                                </p>
+                            </div>
+                            <div class="pt-3 border-t border-gray-100">
+                                <p class="text-sm font-semibold text-gray-800">긴급 모드</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">
+                                    1.5~5초 무작위로 빠르게 조회합니다. 쉬어가는 구간이 없습니다.
+                                    <span class="text-gray-500">(분당 조회 약 16회)</span>
+                                </p>
+                                <p class="mt-1 text-xs text-gray-500">
+                                    → 당일표·출발 직전 취소표처럼 수십 분 안에 승부를 봐야 할 때 권장.
+                                </p>
+                                <p class="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 leading-relaxed">
+                                    오래 켜두면 자동화로 탐지돼 계정이 차단될 수 있습니다. 필요한 시간만 쓰세요.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <button type="button" id="startBtn" data-testid="reserve-start"
                             class="px-6 py-2 rounded-lg text-white font-medium transition-colors
-                                   {% if provider == 'srt' %}bg-srt-primary hover:bg-srt-secondary{% else %}bg-ktx-primary hover:bg-ktx-secondary{% endif %}">
+                                   bg-ktx-primary hover:bg-ktx-secondary">
                         예약 시작
                     </button>
                     <button type="button" id="stopBtn" data-testid="reserve-stop"
@@ -542,7 +601,7 @@
                 </div>
 
                 <p class="text-xs text-gray-400">
-                    카드 정보는 로그인 세션 쿠키에 저장되며 로그아웃 시 삭제됩니다. DB 등에 영구 저장되지 않지만, 브라우저에는 남으니 개인 기기에서만 사용해주세요.
+                    카드 정보는 브라우저가 아니라 서버에 AES-256-GCM으로 암호화되어 저장되고, 로그아웃 시 삭제됩니다. 쿠키에는 세션 식별자만 담깁니다. 30일간 유지되니 공용 기기에서는 사용 후 로그아웃해주세요.
                 </p>
             </div>
         </div>
@@ -917,6 +976,43 @@ document.addEventListener('DOMContentLoaded', function() {
         successSound.currentTime = 0;
     });
 
+    // ─── Pacing Mode (조회 간격 정책) ───
+    const paceModeEl = document.getElementById('paceMode');
+    const paceInfoBtn = document.getElementById('paceInfoBtn');
+    const paceInfoPopover = document.getElementById('paceInfoPopover');
+
+    function refreshPaceStyle() {
+        if (!paceModeEl) return;
+        paceModeEl.classList.toggle('pace-rush', paceModeEl.value === 'rush');
+    }
+
+    if (paceModeEl) {
+        // 마지막에 고른 모드를 기억한다 (기본값은 안심 모드)
+        const saved = localStorage.getItem('paceMode');
+        if (saved === 'safe' || saved === 'rush') paceModeEl.value = saved;
+        refreshPaceStyle();
+
+        paceModeEl.addEventListener('change', function() {
+            localStorage.setItem('paceMode', paceModeEl.value);
+            refreshPaceStyle();
+        });
+    }
+
+    if (paceInfoBtn && paceInfoPopover) {
+        paceInfoBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            paceInfoPopover.classList.toggle('hidden');
+        });
+        document.addEventListener('click', function(e) {
+            if (!paceInfoPopover.contains(e.target) && !paceInfoBtn.contains(e.target)) {
+                paceInfoPopover.classList.add('hidden');
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') paceInfoPopover.classList.add('hidden');
+        });
+    }
+
     if (startBtn) {
         startBtn.addEventListener('click', async function() {
             const selectedIndices = getSelectedTrainIndices();
@@ -935,6 +1031,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('seat_option', seatOption);
             formData.append('passenger_count', passengerCount);
             formData.append('sequential', passengerCount === '2' && passengerMode === 'sequential' ? 'true' : 'false');
+            formData.append('pace_mode', paceModeEl?.value || 'safe');
 
             await fetch('/reserve_select', { method: 'POST', body: formData });
 

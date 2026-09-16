@@ -3,6 +3,7 @@
 import sys
 import os
 import time
+from time import sleep as _sleep
 from datetime import datetime, timedelta
 
 # Add parent directory to path for SRT module
@@ -67,11 +68,12 @@ class SRTService(BaseTrainService):
         return self._client is not None and self._client.is_login
 
     def search(
-        self, dep: str, arr: str, date: str, time: str, include_no_seats: bool = False
+        self, dep: str, arr: str, date: str, time: str, include_no_seats: bool = False,
+        max_pages: int = 2
     ) -> list[TrainInfo]:
         """
         Search for SRT trains with pagination-like logic.
-        Fetches approx 20 trains (2 iterations).
+        Fetches approx 10 trains per page, up to ``max_pages`` pages.
         """
         if not self._client:
             raise SRTNotLoggedInError()
@@ -84,8 +86,8 @@ class SRTService(BaseTrainService):
         all_trains = []
         current_time = time
 
-        # Fetch up to 2 pages (approx 20 trains)
-        for _ in range(2):
+        max_pages = max(1, max_pages)
+        for page in range(max_pages):
             try:
                 # search_train in srt.py fetches a batch.
                 # We don't use time_limit here to avoid fetching too many.
@@ -102,8 +104,13 @@ class SRTService(BaseTrainService):
 
                 all_trains.extend(trains)
 
+                # 마지막 페이지 뒤에는 쉬지 않는다 - 바로 루프를 빠져나갈 참이라
+                # 예전 코드의 1.5초는 매 회차 그냥 버려지는 시간이었다.
+                if page == max_pages - 1:
+                    break
+
                 # Add 1.5 second delay to avoid rate limiting (max 40 API calls per minute)
-                time.sleep(1.5)
+                _sleep(1.5)
 
                 # Update time for next iteration
                 last_train = trains[-1]
@@ -119,7 +126,13 @@ class SRTService(BaseTrainService):
                 if next_dt.strftime("%Y%m%d") != date:
                     break
 
-            except Exception:
+            except SRTError:
+                # 차단·로그인 만료 등 실제 오류는 삼키지 않는다 (korail_service.search
+                # 와 동일한 이유 - bare except 가 실패를 "결과 없음" 으로 둔갑시켰다).
+                # 첫 페이지부터 실패했으면 호출부가 알아야 하고, 이미 받아둔 페이지가
+                # 있으면 그것까지는 살려서 돌려준다.
+                if not all_trains:
+                    raise
                 break
 
         return [self._to_train_info(t) for t in all_trains]

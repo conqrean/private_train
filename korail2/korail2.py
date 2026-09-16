@@ -675,6 +675,25 @@ class SoldOutError(KorailError):
         KorailError.__init__(self, "Sold out", code)
 
 
+class BlockedError(KorailError):
+    """코레일이 자동화 도구로 판단해 요청을 차단한 경우 (HTTP 403)"""
+    codes = {'-2000'}
+
+    def __init__(self, code=None, msg=None):
+        KorailError.__init__(
+            self,
+            msg or "코레일 서버가 요청을 차단했습니다 (자동화 도구 탐지)",
+            code,
+        )
+
+
+class UnexpectedResponseError(KorailError):
+    """응답이 JSON이 아니거나 예상한 필드가 없는 경우"""
+
+    def __init__(self, code=None, msg=None):
+        KorailError.__init__(self, msg or "코레일 서버 응답 형식이 올바르지 않습니다", code)
+
+
 # noinspection PyUnresolvedReferences,PyRedeclaration
 class Korail(object):
     """Korail object"""
@@ -718,6 +737,35 @@ class Korail(object):
             sid = self._generate_sid(ts)
         return headers, sid
 
+    @staticmethod
+    def _parse_response(r):
+        """응답을 JSON으로 파싱한다.
+
+        차단(403)이나 비정상 응답은 KeyError 대신 명확한 KorailError로 올린다.
+        """
+        try:
+            j = json.loads(r.text)
+        except ValueError:
+            raise UnexpectedResponseError(
+                code=str(r.status_code),
+                msg="코레일 서버가 JSON이 아닌 응답을 반환했습니다 (HTTP %s)" % r.status_code,
+            )
+
+        # 안티매크로 차단: {"code":-2000,"id":...,"message":"매크로 등 미허가 도구..."}
+        if r.status_code == 403 or (isinstance(j, dict) and j.get('code') == -2000):
+            raise BlockedError(
+                code=str(j.get('code', r.status_code)),
+                msg=j.get('message') or "코레일 서버가 요청을 차단했습니다 (자동화 도구 탐지)",
+            )
+
+        if not isinstance(j, dict) or 'strResult' not in j:
+            raise UnexpectedResponseError(
+                code=str(r.status_code),
+                msg="코레일 응답에 strResult가 없습니다 (HTTP %s)" % r.status_code,
+            )
+
+        return j
+
     def __enc_password(self, password):
         url = KORAIL_CODE
         data = {
@@ -725,7 +773,7 @@ class Korail(object):
         }
 
         r = self._session.post(url, data=data, verify =False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
 
         if j['strResult'] == 'SUCC' and j.get('app.login.cphd') is not None:
             self._idx = j['app.login.cphd']['idx']
@@ -804,7 +852,7 @@ When you want change ID using existing object,
             data['Sid'] = sid
 
         r = self._session.post(url, data=data, headers=headers, verify=False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
 
         if j['strResult'] == 'SUCC' and j.get('strMbCrdNo') is not None:
             self._key = j['Key']
@@ -998,7 +1046,7 @@ There are 4 types of Passengers now, AdultPassenger, ChildPassenger, ToddlerPass
 
 
         r = self._session.post(url, params=data, headers=headers, verify=False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
 
         if self._result_check(j):
             train_infos = j['trn_infos']['trn_info']
@@ -1148,7 +1196,7 @@ When the train allows waiting, enroll for the waiting list instead of failing in
             index += 1
 
         r = self._session.get(url, params=data, headers=headers, verify=False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
         if self._result_check(j):
             rsv_id = j['h_pnr_no']
             rsvlist = list(filter(lambda x: x.rsv_id == rsv_id, self.reservations()))
@@ -1170,7 +1218,7 @@ When the train allows waiting, enroll for the waiting list instead of failing in
         }
 
         r = self._session.get(url, params=data, verify =False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
         try:
             if self._result_check(j):
                 ticket_infos = j['reservation_list']
@@ -1190,7 +1238,7 @@ When the train allows waiting, enroll for the waiting list instead of failing in
                         'h_orgtk_ret_pwd': ticket.sale_info4,
                     }
                     r = self._session.get(url, params=data, verify =False)
-                    j = json.loads(r.text)
+                    j = self._parse_response(r)
                     if self._result_check(j):
                         seat = j['ticket_infos']['ticket_info'][0]['tk_seat_info'][0]
                         ticket.seat_no = _get_utf8(seat, 'h_seat_no')
@@ -1212,7 +1260,7 @@ When the train allows waiting, enroll for the waiting list instead of failing in
             'hidPnrNo': rsv_id,
         }
         r = self._session.get(url, params=data, verify=False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
         try:
             if not self._result_check(j):
                 return [], None
@@ -1235,7 +1283,7 @@ When the train allows waiting, enroll for the waiting list instead of failing in
             'Key': self._key,
         }
         r = self._session.get(url, params=data, verify =False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
         try:
             if self._result_check(j):
                 rsv_infos = j['jrny_infos']['jrny_info']
@@ -1293,7 +1341,7 @@ When the train allows waiting, enroll for the waiting list instead of failing in
             'hiduserYn': 'Y',
         }
         r = self._session.post(url, data=data, verify=False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
         if self._result_check(j):
             return True
         return False
@@ -1312,6 +1360,6 @@ When the train allows waiting, enroll for the waiting list instead of failing in
             'hidRsvChgNo': rsv.rsv_chg_no,
         }
         r = self._session.get(url, data=data, verify =False)
-        j = json.loads(r.text)
+        j = self._parse_response(r)
         if self._result_check(j):
             return True

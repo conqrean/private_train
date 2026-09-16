@@ -17,8 +17,13 @@ def _init_session_structure() -> None:
 
 
 def get_current_provider() -> str:
-    """Get the currently active provider."""
-    return session.get('current_provider', 'srt')
+    """Get the currently active provider.
+
+    SRT 가 코레일로 통합되면서 웹 UI 에서 SRT 화면을 내렸다. 기본값이 'srt' 로
+    남아 있으면 새 세션이 노출되지 않는 화면으로 떨어지므로 'korail' 로 둔다.
+    (provider 분기 자체는 되돌릴 수 있게 백엔드에 그대로 남겨둔 상태)
+    """
+    return session.get('current_provider', 'korail')
 
 
 def set_current_provider(provider: str) -> None:
@@ -45,8 +50,13 @@ def set_auth_state(provider: str, user_id: str) -> None:
     session.modified = True
 
 
-def clear_auth_state(provider: str) -> None:
-    """Clear authentication state for a provider."""
+def clear_auth_state(provider: str, keep_card: bool = False) -> None:
+    """Clear authentication state for a provider.
+
+    Pass keep_card=True for the automatic re-login that runs on every request:
+    a transient failure there (network down, provider hiccup) must not throw
+    away the card the user registered. Only an explicit logout clears it.
+    """
     _init_session_structure()
     if provider in session['auth']:
         session['auth'][provider] = {'logged_in': False}
@@ -54,7 +64,7 @@ def clear_auth_state(provider: str) -> None:
         del session['credentials'][provider]
     if provider in session['search_state']:
         del session['search_state'][provider]
-    if provider in session['cards']:
+    if not keep_card and provider in session['cards']:
         del session['cards'][provider]
     session.modified = True
 
@@ -68,12 +78,12 @@ def is_logged_in(provider: str = None) -> bool:
 
 def get_logged_in_providers() -> List[str]:
     """Get list of all logged-in providers."""
-    return [p for p in ['srt', 'korail'] if is_logged_in(p)]
+    return [p for p in ['korail', 'srt'] if is_logged_in(p)]
 
 
 def get_any_logged_in_provider() -> Optional[str]:
     """Return any provider that is logged in, or None."""
-    for p in ['srt', 'korail']:
+    for p in ['korail', 'srt']:
         if is_logged_in(p):
             return p
     return None
@@ -104,7 +114,8 @@ def set_search_trains(provider: str, trains: List[Dict]) -> None:
 
 def set_selected_indices(
     provider: str, indices: List[int], seat_option: str,
-    passenger_count: int = 1, sequential: bool = False
+    passenger_count: int = 1, sequential: bool = False,
+    pace_mode: str = 'safe'
 ) -> None:
     """Store selected train indices and reservation options for a provider."""
     state = get_search_state(provider)
@@ -112,6 +123,7 @@ def set_selected_indices(
     state['seat_option'] = seat_option
     state['passenger_count'] = passenger_count
     state['sequential'] = sequential
+    state['pace_mode'] = pace_mode
     session.modified = True
 
 

@@ -115,7 +115,8 @@ class BaseTrainService(ABC):
         arr: str,
         date: str,
         time: str,
-        include_no_seats: bool = False
+        include_no_seats: bool = False,
+        max_pages: int = 2
     ) -> list[TrainInfo]:
         """Search for available trains.
 
@@ -125,6 +126,9 @@ class BaseTrainService(ABC):
             date: Departure date (YYYYMMDD)
             time: Departure time (HHMMSS)
             include_no_seats: Include sold-out trains
+            max_pages: How many pages (~10 trains each) to fetch. The retry loop
+                asks for 1 and only pays for a second page when a candidate train
+                is missing - every extra page is another API call per attempt.
 
         Returns:
             List of TrainInfo objects

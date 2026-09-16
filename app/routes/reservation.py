@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Reservation routes with SSE support and multi-provider session."""
 import json
-import random
 import threading
 import time
 from datetime import datetime
@@ -10,6 +9,7 @@ from flask import Blueprint, request, session, redirect, url_for, Response, json
 
 from app.services import ServiceManager, SeatOption
 from app.services.telegram_service import TelegramService
+from app.utils.pacing import Pacer, DEFAULT_MODE, PROFILES, normalize_mode
 from app.utils.session_helper import (
     get_current_provider,
     is_logged_in,
@@ -22,9 +22,10 @@ from app.utils.session_helper import (
 
 # Import exception types for error detection
 try:
-    from korail2 import NeedToLoginError as KorailLoginError
+    from korail2 import NeedToLoginError as KorailLoginError, BlockedError as KorailBlockedError
 except ImportError:
     KorailLoginError = None
+    KorailBlockedError = None
 
 try:
     from SRT.errors import SRTNotLoggedInError, SRTLoginError
@@ -153,6 +154,7 @@ def _setup_telegram_callbacks():
             macro_thread = threading.Thread(
                 target=run_reservation_loop,
                 args=(service, provider, selected_trains, SeatOption.GENERAL_FIRST, card),
+                kwargs={"pace_mode": normalize_mode(kwargs.get("pace_mode"))},
                 daemon=True,
                 name="tg-macro",
             )
@@ -195,6 +197,40 @@ def is_login_error(error: Exception, provider: str) -> bool:
     return False
 
 
+def is_blocked_error(error: Exception) -> bool:
+    """서버가 자동화 도구를 탐지하고 명시적으로 요청을 거부한 경우인지 판별한다.
+
+    코레일은 이 경우 ``{"code": -2000, "message": "매크로 등 미허가 도구..."}`` 또는
+    HTTP 403 을 돌려준다. 재시도로 풀리는 일시적 오류가 아니므로 복구 대상이 아니다.
+    """
+    return bool(KorailBlockedError) and isinstance(error, KorailBlockedError)
+
+
+def _sleep_unless_stopped(seconds: float, step: float = 0.5) -> None:
+    """중단 요청에 빠르게 반응하도록 잘게 나눠 잔다.
+
+    안심 모드의 '자리비움' 휴식은 최대 2분까지 늘어나므로, 통째로 자버리면
+    사용자가 중단을 눌러도 그만큼 멈추지 않는다.
+    """
+    deadline = time.monotonic() + seconds
+    while not STOP_MACRO:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(step, remaining))
+
+
+def _find_train(fresh_trains, train_info):
+    """조회 결과에서 후보 열차와 같은 편성(열차번호 + 출발시각)을 찾는다."""
+    for t in fresh_trains:
+        if (
+            t.train_number == train_info["train_number"]
+            and t.dep_time == train_info["dep_time"]
+        ):
+            return t
+    return None
+
+
 def login_required(f):
     """Decorator to require login."""
 
@@ -220,11 +256,12 @@ def reserve_select():
     except (TypeError, ValueError):
         passenger_count = 1
     sequential = request.form.get("sequential", "false") == "true"
+    pace_mode = normalize_mode(request.form.get("pace_mode"))
 
     # Store for this provider
     set_selected_indices(
         provider, [int(i) for i in selected_indices], seat_option,
-        passenger_count, sequential
+        passenger_count, sequential, pace_mode
     )
 
     return jsonify({"success": True, "count": len(selected_indices)})
@@ -262,7 +299,7 @@ def attempt_recovery(provider: str, service) -> tuple[bool, str]:
 
 def run_reservation_loop(
     service, provider: str, selected_trains: list, seat_option, card: dict | None,
-    passenger_count: int = 1, sequential: bool = False
+    passenger_count: int = 1, sequential: bool = False, pace_mode: str = DEFAULT_MODE
 ):
     """Reservation retry loop, run on a background daemon thread.
 
@@ -277,10 +314,14 @@ def run_reservation_loop(
         both together in a single call - each success is paid immediately and the loop
         keeps going for the remaining seat(s). Aimed at catching sporadic single-seat
         cancellations, which show up far more often than two seats freeing up at once.
+    :param pace_mode: 조회 간격 정책. ``"safe"`` (기본) 는 사람의 새로고침 간격에
+        가까운 롱테일 분포로 분당 조회를 10회 안팎으로 억제하고, ``"rush"`` 는
+        1.5~5초로 빠르게 찌른다. :mod:`app.utils.pacing` 참고.
     """
     global STOP_MACRO
     tg = TelegramService.get_instance()
     STOP_MACRO = False
+    pacer = Pacer(pace_mode)
 
     # Reservations already confirmed this run (only ever >1 entry in sequential mode -
     # a one-shot multi-seat reservation is a single entry that already covers every seat)
@@ -308,10 +349,13 @@ def run_reservation_loop(
     if passenger_count > 1:
         mode_note = " (1인씩 순차 예약)" if sequential else f" ({passenger_count}인 동시 예약)"
     tg.push_log("log", f"예약 매크로를 시작합니다{mode_note}. 대상: {trains_summary}")
+    tg.push_log("log", f"{pacer.label} - {pacer.profile.summary}")
 
     attempt = 0
     consecutive_errors = 0
+    transient_errors = 0
     recovery_attempts = 0
+    stop_reason = "사용자 중단"
 
     while not STOP_MACRO:
         attempt += 1
@@ -322,14 +366,21 @@ def run_reservation_loop(
             tg.set_macro_state(True, {"current_train": None, "current_time": None})
             tg.push_log("log", f"[{timestamp}] 시도 #{attempt}: 열차 정보 조회 중...")
 
-            fresh_trains = service.search(
+            # 후보 열차는 출발시각 기준 첫 페이지(약 10편) 안에 있는 게 보통이다.
+            # 매 회차 무조건 2페이지를 받으면 조회 API 호출이 그대로 두 배가 되므로,
+            # 1페이지에서 후보가 전부 보이면 거기서 끝낸다.
+            search_args = dict(
                 dep=earliest_train["dep_station"],
                 arr=earliest_train["arr_station"],
                 date=earliest_train["dep_date"],
                 time=earliest_train["dep_time"],
                 include_no_seats=True,
             )
+            fresh_trains = service.search(max_pages=1, **search_args)
+            if any(_find_train(fresh_trains, t) is None for t in selected_trains):
+                fresh_trains = service.search(max_pages=2, **search_args)
             consecutive_errors = 0
+            transient_errors = 0
 
             for candidate_idx, train_info in enumerate(selected_trains):
                 if STOP_MACRO:
@@ -350,14 +401,7 @@ def run_reservation_loop(
                     },
                 )
 
-                matching_train = None
-                for t in fresh_trains:
-                    if (
-                        t.train_number == train_info["train_number"]
-                        and t.dep_time == train_info["dep_time"]
-                    ):
-                        matching_train = t
-                        break
+                matching_train = _find_train(fresh_trains, train_info)
 
                 if not matching_train:
                     tg.push_log("log", f"[{timestamp}] {train_name} ({dep_time}): 열차를 찾을 수 없음")
@@ -365,6 +409,13 @@ def run_reservation_loop(
 
                 if not matching_train.has_seat():
                     tg.push_log("log", f"[{timestamp}] {train_name} ({dep_time}): 좌석 없음")
+                    continue
+
+                # 방금 예약에 실패한 열차는 잠시 건드리지 않는다. 같은 열차에 예약
+                # API 를 연타하는 건 조회 연타보다 훨씬 강한 탐지 신호이고, 막 팔린
+                # 좌석이 1~2초 만에 다시 풀릴 일도 없다.
+                train_key = f"{train_info['train_number']}:{train_info['dep_time']}"
+                if pacer.is_held(train_key, time.monotonic()):
                     continue
 
                 tg.push_log("log", f"[{timestamp}] {train_name} ({dep_time}): 좌석 있음! 예약 시도 중...")
@@ -426,9 +477,15 @@ def run_reservation_loop(
                             )
                             break
                     else:
+                        pacer.hold_train(train_key, time.monotonic())
                         tg.push_log("log", f"[{timestamp}] {train_name} ({dep_time}): {result.message}")
 
                 except Exception as reserve_error:
+                    if is_blocked_error(reserve_error):
+                        # 차단은 후보 열차 단위로 넘길 문제가 아니다. 바깥 핸들러가
+                        # 매크로 전체를 세우도록 그대로 올린다.
+                        raise
+                    pacer.hold_train(train_key, time.monotonic())
                     error_msg = str(reserve_error)
                     tg.push_log("log", f"[{timestamp}] {train_name} ({dep_time}): 예약 오류 - {error_msg}")
                     if is_login_error(reserve_error, provider):
@@ -440,6 +497,16 @@ def run_reservation_loop(
         except Exception as e:
             error_msg = str(e)
             error_type = type(e).__name__
+
+            # 서버가 자동화 도구를 탐지해 명시적으로 요청을 거부한 경우.
+            # 재시도해도 풀리지 않고 요청만 더 쌓이므로 즉시 멈춘다.
+            if is_blocked_error(e):
+                stop_reason = f"서버 차단 감지 ({error_msg})"
+                tg.push_log("error", f"[{timestamp}] 서버가 요청을 차단했습니다: {error_msg}")
+                tg.push_log("error", "자동 재시도를 중단합니다.")
+                STOP_MACRO = True
+                break
+
             msg = f"[{timestamp}] 오류 ({error_type}): {error_msg}"
             tg.push_log("error", msg)
 
@@ -457,24 +524,35 @@ def run_reservation_loop(
                     if success:
                         tg.push_log("success", f"[{timestamp}] {recovery_msg} - 예약 재시작")
                         consecutive_errors = 0
-                        time.sleep(1)
+                        _sleep_unless_stopped(1)
                         continue
                     else:
                         tg.push_log("error", f"[{timestamp}] {recovery_msg}")
                         if recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
                             tg.push_log("error", f"[{timestamp}] 최대 복구 시도 횟수 초과. 예약을 중단합니다.")
+                            stop_reason = "최대 복구 시도 횟수 초과"
                             STOP_MACRO = True
                             break
             else:
-                tg.push_log("warning", f"[{timestamp}] 일시적 오류 - 재시도 중...")
+                # 오류가 나는 동안에도 같은 빈도로 계속 찌르는 건 서버 입장에서
+                # 가장 의심스러운 패턴이다. 연속 실패할수록 물러난다.
+                transient_errors += 1
+                wait = pacer.backoff(transient_errors)
+                tg.push_log(
+                    "warning",
+                    f"[{timestamp}] 일시적 오류 - {wait:.0f}초 후 재시도합니다...",
+                )
                 if attempt % 1000 == 0:
                     tg.send_message(f"⚠️ {msg}")
-                time.sleep(1)
+                _sleep_unless_stopped(wait)
 
-        time.sleep(random.uniform(1, 1.5))
+        delay, pace_note = pacer.next_delay(attempt)
+        if pace_note:
+            tg.push_log("log", f"[{datetime.now().strftime('%H:%M:%S')}] {pace_note}")
+        _sleep_unless_stopped(delay)
 
     tg.set_macro_state(False)
-    tg.send_macro_stopped()
+    tg.send_macro_stopped(stop_reason)
     if seats_secured and seats_secured < passenger_count:
         tg.push_log(
             "stopped",
@@ -533,6 +611,7 @@ def start_reservation():
     trains_data = search_state.get("trains", [])
     passenger_count = max(1, min(2, search_state.get("passenger_count", 1)))
     sequential = bool(search_state.get("sequential", False)) and passenger_count > 1
+    pace_mode = normalize_mode(search_state.get("pace_mode"))
 
     selected_trains = [
         trains_data[idx] for idx in selected_indices if idx < len(trains_data)
@@ -563,7 +642,11 @@ def start_reservation():
     macro_thread = threading.Thread(
         target=run_reservation_loop,
         args=(service, provider, selected_trains, seat_option, card),
-        kwargs={"passenger_count": passenger_count, "sequential": sequential},
+        kwargs={
+            "passenger_count": passenger_count,
+            "sequential": sequential,
+            "pace_mode": pace_mode,
+        },
         daemon=True,
         name="web-macro",
     )

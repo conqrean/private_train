@@ -3,12 +3,15 @@
 import sys
 import os
 import time
+from time import sleep as _sleep
 from datetime import datetime, timedelta
 
 # Add parent directory to path for korail2 module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from korail2 import Korail, KorailError, NeedToLoginError, SoldOutError, NoResultsError, ReserveOption, AdultPassenger
+import requests
+
+from korail2 import Korail, KorailError, NeedToLoginError, SoldOutError, NoResultsError, ReserveOption, AdultPassenger, BlockedError
 from SRT.constants import STATION_NAME as SRT_STATION_NAME
 
 from app.services.base_service import (
@@ -37,15 +40,29 @@ class KorailService(BaseTrainService):
         self._client: Korail | None = None
         self._user_id: str | None = None
         self._password: str | None = None
+        self.last_error: str | None = None
 
     def login(self, user_id: str, password: str) -> bool:
         """Login to Korail."""
+        self.last_error = None
         try:
             self._client = Korail(user_id, password, auto_login=True, want_feedback=False)
             self._user_id = user_id
             self._password = password
             return self._client.logined
-        except KorailError:
+        except BlockedError as e:
+            # 코레일 안티매크로에 막힌 경우. 아이디/비밀번호 문제가 아니므로
+            # 자격증명 오류와 구분해서 알려준다.
+            self.last_error = (
+                "코레일 서버가 요청을 차단했습니다. 잠시 후 다시 시도해주세요. "
+                "(서버 응답: %s)" % e.msg
+            )
+            return False
+        except KorailError as e:
+            self.last_error = str(e)
+            return False
+        except requests.RequestException as e:
+            self.last_error = "코레일 서버에 연결할 수 없습니다: %s" % e
             return False
 
     def logout(self) -> None:
@@ -66,11 +83,12 @@ class KorailService(BaseTrainService):
         arr: str,
         date: str,
         time: str,
-        include_no_seats: bool = False
+        include_no_seats: bool = False,
+        max_pages: int = 2
     ) -> list[TrainInfo]:
         """
         Search for Korail trains with pagination-like logic.
-        Fetches approx 20 trains by default (2 pages).
+        Fetches approx 10 trains per page, up to ``max_pages`` pages.
         """
         if not self._client:
             raise NeedToLoginError()
@@ -78,9 +96,9 @@ class KorailService(BaseTrainService):
         all_trains = []
         current_time = time
         
-        # Fetch up to 2 pages (approx 20 trains)
         # Korail returns ~10 trains per call
-        for _ in range(2):
+        max_pages = max(1, max_pages)
+        for page in range(max_pages):
             try:
                 trains = self._client.search_train(
                     dep=dep,
@@ -94,10 +112,15 @@ class KorailService(BaseTrainService):
                     break
                     
                 all_trains.extend(trains)
-                
+
+                # 마지막 페이지 뒤에는 쉬지 않는다 - 바로 루프를 빠져나갈 참이라
+                # 예전 코드의 1.5초는 매 회차 그냥 버려지는 시간이었다.
+                if page == max_pages - 1:
+                    break
+
                 # Add 1.5 second delay to avoid rate limiting (max 40 API calls per minute)
-                time.sleep(1.5)
-                
+                _sleep(1.5)
+
                 # Update time for next page
                 # Parse last train time and add 1 minute
                 last_train = trains[-1]
@@ -110,8 +133,16 @@ class KorailService(BaseTrainService):
                     break
                     
             except NoResultsError:
+                # 결과 없음은 정상적인 페이지네이션 종료 조건.
                 break
-            except Exception:
+            except (KorailError, requests.RequestException):
+                # 차단·로그인 만료·네트워크 오류는 삼키지 않는다. 예전에는 bare
+                # except 가 이걸 전부 먹어버려서, 차단된 상태에서도 매크로가 빈
+                # 결과를 "열차를 찾을 수 없음" 으로 표시하며 무한히 돌았다.
+                # 첫 페이지부터 실패했으면 호출부(매크로 복구 로직)가 알아야 하고,
+                # 이미 받아둔 페이지가 있으면 그것까지는 살려서 돌려준다.
+                if not all_trains:
+                    raise
                 break
 
         return [self._to_train_info(t) for t in all_trains]
@@ -155,6 +186,11 @@ class KorailService(BaseTrainService):
                 success=False,
                 message="매진되었습니다."
             )
+        except BlockedError:
+            # 차단은 "예약 실패" 가 아니라 "그만 보내라" 는 신호다. KorailError 로
+            # 뭉뚱그려 실패 결과로 돌려주면 매크로가 이걸 매진처럼 취급해서 계속
+            # 재시도한다. 호출부가 판단할 수 있게 그대로 올린다.
+            raise
         except KorailError as e:
             return ReservationResult(
                 success=False,
@@ -192,6 +228,8 @@ class KorailService(BaseTrainService):
             if success:
                 return ReservationResult(success=True, message="결제 완료!")
             return ReservationResult(success=False, message="결제에 실패했습니다.")
+        except BlockedError:
+            raise
         except KorailError as e:
             return ReservationResult(success=False, message=str(e))
 
